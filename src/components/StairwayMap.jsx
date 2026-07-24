@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import { supabase } from '../supabaseClient';
 import MapControlsPanel from './MapControlsPanel';
@@ -21,25 +21,47 @@ function uncroppedPhotoUrl(url) {
 
 // When a marker is tapped, its info window (with photo, description, etc.)
 // opens ABOVE the pin. On a small phone screen, if the pin is anywhere near
-// the top of the visible map, that card can get cut off. This component
-// nudges the map so the tapped pin sits lower on screen, leaving room above
-// it for the full card to show.
+// the top of the visible map, that card can get cut off -- and since the
+// photo loads in *after* the card first appears, the card grows taller
+// partway through, so a pan calculated up front can go stale the moment the
+// photo finishes loading.
 //
-// NOTE: the exact offset (0.004) is an estimate -- it hasn't been tested on
-// a real device. If the card still gets cut off, try increasing this number
-// (e.g. to 0.006); if it shifts too far, decrease it (e.g. to 0.0025).
-const PAN_LAT_OFFSET = 0.004;
+// Instead of guessing a fixed offset, this measures the actual on-screen
+// position of the rendered info window (via infoWindowRef) against the
+// map's own bounding box, and pans by exactly the pixel amount needed to
+// bring its top edge fully into view -- re-checking whenever `photoLoaded`
+// flips true so the final, photo-included height is accounted for.
+const TOP_MARGIN_PX = 16; // small breathing room from the map's top edge
 
-function MapPanner({ target }) {
+function MapPanner({ target, photoLoaded, infoWindowRef }) {
   const map = useMap();
 
   useEffect(() => {
     if (!map || !target) return;
-    map.panTo({
-      lat: target.latitude + PAN_LAT_OFFSET,
-      lng: target.longitude,
-    });
-  }, [map, target]);
+
+    // Defer to the next tick so the InfoWindow has actually painted (and,
+    // on the photoLoaded pass, so the <img> has taken up its final space)
+    // before we measure it.
+    const timeoutId = setTimeout(() => {
+      const mapDiv = map.getDiv();
+      const infoEl = infoWindowRef.current;
+      if (!mapDiv || !infoEl) return;
+
+      const mapRect = mapDiv.getBoundingClientRect();
+      const infoRect = infoEl.getBoundingClientRect();
+
+      const overflowTop = mapRect.top + TOP_MARGIN_PX - infoRect.top;
+      if (overflowTop > 0) {
+        // Card's top is above the visible map area (or too close to the
+        // edge) -- shift the map so the card moves down by exactly that
+        // many pixels. Negative y moves the map's center north, which
+        // shifts on-screen content down.
+        map.panBy(0, -overflowTop);
+      }
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [map, target, photoLoaded, infoWindowRef]);
 
   return null;
 }
@@ -53,6 +75,16 @@ export default function StairwayMap({ onReportIssue }) {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Tracks whether the currently-open info window's photo has finished
+  // loading, so MapPanner can re-measure and re-pan once the card reaches
+  // its final height. Reset any time a different stairway is selected.
+  const [photoLoaded, setPhotoLoaded] = useState(false);
+  const infoWindowRef = useRef(null);
+
+  useEffect(() => {
+    setPhotoLoaded(false);
+  }, [selected]);
 
   // Which rating buckets are currently visible on the map. Starts with
   // everything shown, same as before this feature existed.
@@ -157,8 +189,13 @@ export default function StairwayMap({ onReportIssue }) {
           defaultZoom={12}
           gestureHandling="greedy"
           disableDefaultUI={false}
+          onClick={() => setSelected(null)}
         >
-          <MapPanner target={selected} />
+          <MapPanner
+            target={selected}
+            photoLoaded={photoLoaded}
+            infoWindowRef={infoWindowRef}
+          />
 
           {visibleStairways.map((s) => {
             const style = getRatingStyle(s.rating);
@@ -184,7 +221,7 @@ export default function StairwayMap({ onReportIssue }) {
               position={{ lat: selected.latitude, lng: selected.longitude }}
               onCloseClick={() => setSelected(null)}
             >
-              <div className="info-window">
+              <div className="info-window" ref={infoWindowRef}>
                 <h3>{selected.neighborhood || 'Stairway'}</h3>
                 <p>{selected.description}</p>
                 {selected.rating != null && (
@@ -198,6 +235,8 @@ export default function StairwayMap({ onReportIssue }) {
                     src={uncroppedPhotoUrl(selected.direct_photo_url)}
                     alt={selected.description}
                     referrerPolicy="no-referrer"
+                    onLoad={() => setPhotoLoaded(true)}
+                    onError={() => setPhotoLoaded(true)}
                   />
                 ) : selected.photo_url ? (
                   <p>
