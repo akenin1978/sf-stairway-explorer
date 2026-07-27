@@ -322,3 +322,24 @@ html, body, #root {
   font-size: 13px;
   color: #444;
 }
+
+/* --- Google's own InfoWindow chrome ---
+   Google Maps reserves generous default padding around every InfoWindow,
+   including extra space at the top to make room for the close ("x") button
+   -- this is what causes the oversized top gap above the card content on
+   small screens. These target Google's own injected classes (not ours) to
+   tighten that padding and reposition the close button snugly in the
+   corner instead. */
+.gm-style-iw-c {
+  padding: 8px !important;
+}
+
+.gm-style-iw-d {
+  overflow: visible !important;
+  padding: 0 !important;
+}
+
+.gm-ui-hover-effect {
+  top: 2px !important;
+  right: 2px !important;
+}
