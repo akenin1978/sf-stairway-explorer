@@ -339,7 +339,36 @@ html, body, #root {
   padding: 0 !important;
 }
 
+/* We use our own close button (below) instead, since it's positioned
+   exactly where we want it -- Google's default one sits inside extra
+   wrapper chrome we can't fully control, which kept leaving a gap above
+   the title even after tightening the container padding. */
 .gm-ui-hover-effect {
-  top: 2px !important;
-  right: 2px !important;
+  display: none !important;
+}
+
+.info-window {
+  position: relative;
+  padding-right: 22px; /* leaves room so the close button never overlaps the title text */
+}
+
+.info-window-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  /* lines up the "x" with the first line of bold title text next to it */
+  transform: translateY(-2px);
+}
+
+.info-window-close:hover {
+  color: #000;
 }

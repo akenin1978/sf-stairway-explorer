@@ -6,6 +6,18 @@ import { getRatingStyle } from '../ratingColors';
 
 const SF_CENTER = { lat: 37.7749, lng: -122.4194 };
 
+// Keeps the map locked to San Francisco proper -- including Treasure Island
+// and Alcatraz -- so it can't be panned out across the country. Bounds are
+// intentionally generous around the city's actual edges (Ocean Beach,
+// McLaren Park/Crocker-Amazon in the south, the Presidio/Golden Gate Bridge
+// in the north, Bayview/Hunters Point in the east) with a little padding.
+const SF_BOUNDS = {
+  north: 37.835,
+  south: 37.703,
+  west: -122.515,
+  east: -122.35,
+};
+
 // The set of rating "buckets" that can be toggled on/off: 5 down to 1, plus
 // a special 'unrated' bucket for anything with no rating value.
 const ALL_RATING_KEYS = [5, 4, 3, 2, 1, 'unrated'];
@@ -187,9 +199,14 @@ export default function StairwayMap({ onReportIssue }) {
           style={{ width: '100%', height: '100%' }}
           defaultCenter={SF_CENTER}
           defaultZoom={12}
+          minZoom={11}
           gestureHandling="greedy"
           disableDefaultUI={false}
           onClick={() => setSelected(null)}
+          restriction={{
+            latLngBounds: SF_BOUNDS,
+            strictBounds: true,
+          }}
         >
           <MapPanner
             target={selected}
@@ -222,6 +239,13 @@ export default function StairwayMap({ onReportIssue }) {
               onCloseClick={() => setSelected(null)}
             >
               <div className="info-window" ref={infoWindowRef}>
+                <button
+                  className="info-window-close"
+                  onClick={() => setSelected(null)}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
                 <h3>{selected.neighborhood || 'Stairway'}</h3>
                 <p>{selected.description}</p>
                 {selected.rating != null && (
