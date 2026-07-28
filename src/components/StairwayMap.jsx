@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../AuthContext';
+import { useCheckIns } from '../CheckInsContext';
 import MapControlsPanel from './MapControlsPanel';
 import { getRatingStyle } from '../ratingColors';
 
@@ -82,11 +84,13 @@ function ratingKey(rating) {
   return rating == null ? 'unrated' : rating;
 }
 
-export default function StairwayMap({ onReportIssue }) {
+export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
   const [stairways, setStairways] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
+  const { checkedInIds, toggleCheckIn } = useCheckIns();
 
   // Tracks whether the currently-open info window's photo has finished
   // loading, so MapPanner can re-measure and re-pan once the card reaches
@@ -216,6 +220,7 @@ export default function StairwayMap({ onReportIssue }) {
 
           {visibleStairways.map((s) => {
             const style = getRatingStyle(s.rating);
+            const isChecked = checkedInIds.has(s.id);
             return (
               <Marker
                 key={s.id}
@@ -229,6 +234,11 @@ export default function StairwayMap({ onReportIssue }) {
                   strokeWeight: 1.5,
                   scale: 8,
                 }}
+                label={
+                  isChecked
+                    ? { text: '✓', color: '#ffffff', fontSize: '10px', fontWeight: 'bold' }
+                    : undefined
+                }
               />
             );
           })}
@@ -247,6 +257,26 @@ export default function StairwayMap({ onReportIssue }) {
                   ×
                 </button>
                 <h3>{selected.neighborhood || 'Stairway'}</h3>
+
+                {user ? (
+                  <button
+                    className={
+                      'checkin-toggle' +
+                      (checkedInIds.has(selected.id) ? ' checked' : '')
+                    }
+                    onClick={() => toggleCheckIn(selected.id)}
+                  >
+                    {checkedInIds.has(selected.id) ? '✓ Climbed' : 'Mark as climbed'}
+                  </button>
+                ) : (
+                  <button
+                    className="checkin-toggle signin-prompt"
+                    onClick={() => onRequireSignIn?.()}
+                  >
+                    Sign in to track your climbs
+                  </button>
+                )}
+
                 <p>{selected.description}</p>
                 {selected.rating != null && (
                   <p>Rating: {selected.rating}</p>

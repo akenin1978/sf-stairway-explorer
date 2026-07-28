@@ -372,3 +372,48 @@ html, body, #root {
 .info-window-close:hover {
   color: #000;
 }
+
+.checkin-toggle {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f7f7f7;
+  color: #333;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+
+.checkin-toggle:hover {
+  background: #efefef;
+}
+
+.checkin-toggle.checked {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #fff;
+}
+
+.checkin-toggle.checked:hover {
+  background: #276b2b;
+}
+
+.checkin-toggle.signin-prompt {
+  background: #fff;
+  border-color: #4b3ce0;
+  color: #4b3ce0;
+}
+
+.checkin-toggle.signin-prompt:hover {
+  background: #f5f4ff;
+}
+
+.header-progress {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}

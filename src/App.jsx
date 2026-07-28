@@ -1,14 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import StairwayMap from './components/StairwayMap';
 import FeedbackModal from './components/FeedbackModal';
 import AuthModal from './components/AuthModal';
 import { useAuth } from './AuthContext';
+import { useCheckIns } from './CheckInsContext';
+import { supabase } from './supabaseClient';
 
 export default function App() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackStairway, setFeedbackStairway] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
+  const { count: checkedInCount } = useCheckIns();
+  const [totalStairways, setTotalStairways] = useState(null);
+
+  useEffect(() => {
+    supabase
+      .from('stairways')
+      .select('id', { count: 'exact', head: true })
+      .then(({ count }) => {
+        if (count != null) setTotalStairways(count);
+      });
+  }, []);
 
   const openGeneralFeedback = () => {
     setFeedbackStairway(null);
@@ -25,6 +38,11 @@ export default function App() {
       <header className="app-header">
         <h1>SF Stairway Spotter</h1>
         <div className="header-actions">
+          {user && (
+            <span className="header-progress">
+              {checkedInCount} / {totalStairways ?? '…'} climbed
+            </span>
+          )}
           <button className="header-feedback-button" onClick={openGeneralFeedback}>
             Feedback
           </button>
@@ -45,7 +63,10 @@ export default function App() {
         </div>
       </header>
 
-      <StairwayMap onReportIssue={openStairwayFeedback} />
+      <StairwayMap
+        onReportIssue={openStairwayFeedback}
+        onRequireSignIn={() => setAuthOpen(true)}
+      />
 
       {feedbackOpen && (
         <FeedbackModal
