@@ -40,7 +40,7 @@ export default function App() {
         <div className="header-actions">
           {user && (
             <span className="header-progress">
-              {checkedInCount} / {totalStairways ?? '…'} climbed
+              {checkedInCount} / {totalStairways ?? '…'} spotted
             </span>
           )}
           <button className="header-feedback-button" onClick={openGeneralFeedback}>

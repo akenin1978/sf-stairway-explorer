@@ -266,7 +266,7 @@ export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
                     }
                     onClick={() => toggleCheckIn(selected.id)}
                   >
-                    {checkedInIds.has(selected.id) ? '✓ Climbed' : 'Mark as climbed'}
+                    {checkedInIds.has(selected.id) ? '✓ Spotted' : 'Mark as spotted'}
                   </button>
                 ) : (
                   <button
