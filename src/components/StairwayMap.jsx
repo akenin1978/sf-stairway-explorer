@@ -273,7 +273,7 @@ export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
                     className="checkin-toggle signin-prompt"
                     onClick={() => onRequireSignIn?.()}
                   >
-                    Sign in to track your climbs
+                    Sign in to save your spots
                   </button>
                 )}
 
