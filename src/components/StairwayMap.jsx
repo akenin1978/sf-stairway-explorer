@@ -275,19 +275,43 @@ export default function StairwayMap({
     let isMounted = true;
 
     async function loadStairways() {
-      const { data, error } = await supabase
-        .from('stairways')
-        .select('*')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
+      // A single unbounded request silently caps out at Supabase's
+      // default max-rows-per-request limit (1,000) -- with 1,100+
+      // stairways, that meant the last ~100 or so never actually loaded,
+      // even though nothing looked obviously wrong. Paging through in
+      // batches, stopping only once a page comes back with fewer rows
+      // than we asked for, guarantees we always get everything regardless
+      // of how large the table grows or what the server's cap is set to.
+      const PAGE_SIZE = 500;
+      let allRows = [];
+      let from = 0;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('stairways')
+          .select('*')
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
+          .order('id', { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) {
+          if (isMounted) {
+            setError(error.message);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const rows = data ?? [];
+        allRows = allRows.concat(rows);
+
+        if (rows.length < PAGE_SIZE) break; // reached the true end of the table
+        from += PAGE_SIZE;
+      }
 
       if (!isMounted) return;
-
-      if (error) {
-        setError(error.message);
-      } else {
-        setStairways(data ?? []);
-      }
+      setStairways(allRows);
       setLoading(false);
     }
 
