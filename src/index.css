@@ -11,7 +11,8 @@ html, body, #root {
 }
 
 .app {
-  height: 100vh;
+  height: 100vh; /* fallback for older browsers */
+  height: 100dvh; /* accounts for mobile browsers' collapsible address bar */
   width: 100vw;
   display: flex;
   flex-direction: column;
@@ -759,4 +760,34 @@ html, body, #root {
   font-size: 11px;
   color: #999;
   margin-top: 2px;
+}
+
+/* --- Mobile header fix ---
+   On narrow screens, "SF Stairway Spotter" at the desktop font size was
+   wrapping across 2-3 lines, ballooning the header's height and pushing
+   the map (and the Legend/Filters panel anchored to its bottom corner)
+   further down than fits on screen. Shrinking the title and letting the
+   action buttons wrap onto their own row keeps the header compact. */
+@media (max-width: 600px) {
+  .app-header {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .app-header h1 {
+    font-size: 16px;
+    width: 100%;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    margin-left: 0;
+    gap: 6px;
+  }
+
+  .header-account-area {
+    margin-left: 0;
+  }
 }
