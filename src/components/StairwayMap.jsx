@@ -390,9 +390,11 @@ export default function StairwayMap({
           minZoom={11}
           gestureHandling="greedy"
           disableDefaultUI={false}
-          mapTypeControlOptions={{
-            style: window.google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-          }}
+          mapTypeControlOptions={
+            window.google?.maps?.MapTypeControlStyle
+              ? { style: window.google.maps.MapTypeControlStyle.DROPDOWN_MENU }
+              : undefined
+          }
           onClick={(e) => {
             if (spotMode) {
               const latLng = e.detail?.latLng;
