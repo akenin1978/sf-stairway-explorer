@@ -84,13 +84,87 @@ function ratingKey(rating) {
   return rating == null ? 'unrated' : rating;
 }
 
-export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
+export default function StairwayMap({
+  onReportIssue,
+  onRequireSignIn,
+  spotMode,
+  onCancelSpot,
+}) {
   const [stairways, setStairways] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
   const { checkedInIds, toggleCheckIn } = useCheckIns();
+
+  // --- "Spot a Stairway" state ---
+  // spotLocation is null while the person still needs to pick where the
+  // stairway is (tap the map, or use their current location). Once set,
+  // we show the description form instead of the "tap the map" banner.
+  const [spotLocation, setSpotLocation] = useState(null);
+  const [spotDescription, setSpotDescription] = useState('');
+  const [spotEmail, setSpotEmail] = useState('');
+  const [spotStatus, setSpotStatus] = useState('idle'); // idle | submitting | success | error
+  const [spotErrorMsg, setSpotErrorMsg] = useState('');
+
+  // Reset everything when spot mode is turned off (whether from a
+  // successful submit or hitting Cancel), and close any open stairway
+  // info window the moment spot mode is turned on, so the two flows never
+  // overlap on screen.
+  useEffect(() => {
+    if (!spotMode) {
+      setSpotLocation(null);
+      setSpotDescription('');
+      setSpotEmail('');
+      setSpotStatus('idle');
+      setSpotErrorMsg('');
+    } else {
+      setSelected(null);
+    }
+  }, [spotMode]);
+
+  function handleUseMyLocation() {
+    if (!navigator.geolocation) {
+      setSpotErrorMsg('Location services are not available in this browser.');
+      return;
+    }
+    setSpotErrorMsg('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setSpotLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          source: 'gps',
+        });
+      },
+      () => {
+        setSpotErrorMsg("Couldn't get your location -- try tapping the map instead.");
+      }
+    );
+  }
+
+  async function handleSpotSubmit(e) {
+    e.preventDefault();
+    if (!spotDescription.trim() || !spotLocation) return;
+
+    setSpotStatus('submitting');
+
+    const { error } = await supabase.from('stairway_submissions').insert({
+      description: spotDescription.trim(),
+      latitude: spotLocation.lat,
+      longitude: spotLocation.lng,
+      location_source: spotLocation.source,
+      contact_email: spotEmail.trim() || null,
+      user_id: user?.id ?? null,
+    });
+
+    if (error) {
+      setSpotStatus('error');
+      setSpotErrorMsg(error.message);
+    } else {
+      setSpotStatus('success');
+    }
+  }
 
   // Tracks whether the currently-open info window's photo has finished
   // loading, so MapPanner can re-measure and re-pan once the card reaches
@@ -206,7 +280,17 @@ export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
           minZoom={11}
           gestureHandling="greedy"
           disableDefaultUI={false}
-          onClick={() => setSelected(null)}
+          onClick={(e) => {
+            if (spotMode) {
+              const latLng = e.detail?.latLng;
+              if (latLng) {
+                setSpotLocation({ lat: latLng.lat, lng: latLng.lng, source: 'pin' });
+                setSpotErrorMsg('');
+              }
+              return;
+            }
+            setSelected(null);
+          }}
           restriction={{
             latLngBounds: SF_BOUNDS,
             strictBounds: true,
@@ -225,7 +309,9 @@ export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
               <Marker
                 key={s.id}
                 position={{ lat: s.latitude, lng: s.longitude }}
-                onClick={() => setSelected(s)}
+                onClick={() => {
+                  if (!spotMode) setSelected(s);
+                }}
                 icon={{
                   path: window.google.maps.SymbolPath.CIRCLE,
                   fillColor: style.color,
@@ -243,7 +329,7 @@ export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
             );
           })}
 
-          {selected && (
+          {selected && !spotMode && (
             <InfoWindow
               position={{ lat: selected.latitude, lng: selected.longitude }}
               onCloseClick={() => setSelected(null)}
@@ -257,25 +343,6 @@ export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
                   ×
                 </button>
                 <h3>{selected.neighborhood || 'Stairway'}</h3>
-
-                {user ? (
-                  <button
-                    className={
-                      'checkin-toggle' +
-                      (checkedInIds.has(selected.id) ? ' checked' : '')
-                    }
-                    onClick={() => toggleCheckIn(selected.id)}
-                  >
-                    {checkedInIds.has(selected.id) ? '✓ Spotted' : 'Mark as spotted'}
-                  </button>
-                ) : (
-                  <button
-                    className="checkin-toggle signin-prompt"
-                    onClick={() => onRequireSignIn?.()}
-                  >
-                    Sign in to save your spots
-                  </button>
-                )}
 
                 <p>{selected.description}</p>
                 {selected.rating != null && (
@@ -299,6 +366,26 @@ export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
                     </a>
                   </p>
                 ) : null}
+
+                {user ? (
+                  <button
+                    className={
+                      'checkin-toggle' +
+                      (checkedInIds.has(selected.id) ? ' checked' : '')
+                    }
+                    onClick={() => toggleCheckIn(selected.id)}
+                  >
+                    {checkedInIds.has(selected.id) ? '✓ Spotted' : 'Mark as spotted'}
+                  </button>
+                ) : (
+                  <button
+                    className="checkin-toggle signin-prompt"
+                    onClick={() => onRequireSignIn?.()}
+                  >
+                    Sign in to save your spots
+                  </button>
+                )}
+
                 <button
                   className="report-issue-link"
                   onClick={() => onReportIssue?.(selected)}
@@ -307,6 +394,19 @@ export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
                 </button>
               </div>
             </InfoWindow>
+          )}
+          {spotMode && spotLocation && (
+            <Marker
+              position={{ lat: spotLocation.lat, lng: spotLocation.lng }}
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                fillColor: '#e91e63',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 2,
+                scale: 10,
+              }}
+            />
           )}
         </Map>
 
@@ -319,6 +419,87 @@ export default function StairwayMap({ onReportIssue, onRequireSignIn }) {
           onShowAllNeighborhoods={showAllNeighborhoods}
           onHideAllNeighborhoods={hideAllNeighborhoods}
         />
+
+        {spotMode && !spotLocation && (
+          <div className="spot-banner">
+            <span>Tap the map to mark where you spotted a stairway</span>
+            {spotErrorMsg && (
+              <span className="spot-banner-error">{spotErrorMsg}</span>
+            )}
+            <div className="spot-banner-actions">
+              <button type="button" onClick={handleUseMyLocation}>
+                Use my location
+              </button>
+              <button type="button" onClick={onCancelSpot}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {spotMode && spotLocation && (
+          <div className="spot-form-card">
+            {spotStatus === 'success' ? (
+              <div>
+                <h2>Thanks!</h2>
+                <p>I'll take a look and add it to the map if it checks out.</p>
+                <button type="button" onClick={onCancelSpot}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSpotSubmit}>
+                <h2>Spot a Stairway</h2>
+                <p className="modal-context">
+                  {spotLocation.source === 'gps'
+                    ? 'Using your current location.'
+                    : 'Location: where you tapped on the map.'}{' '}
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => setSpotLocation(null)}
+                  >
+                    Change location
+                  </button>
+                </p>
+
+                <textarea
+                  placeholder="Describe the stairway and where exactly it is (cross streets, landmarks, etc.)"
+                  value={spotDescription}
+                  onChange={(e) => setSpotDescription(e.target.value)}
+                  rows={4}
+                  required
+                />
+
+                <input
+                  type="email"
+                  placeholder="Your email (optional, if you'd like a reply)"
+                  value={spotEmail}
+                  onChange={(e) => setSpotEmail(e.target.value)}
+                />
+
+                {spotStatus === 'error' && (
+                  <p className="modal-error">
+                    Something went wrong: {spotErrorMsg}
+                  </p>
+                )}
+
+                <div className="spot-form-buttons">
+                  <button
+                    type="button"
+                    className="spot-form-cancel"
+                    onClick={onCancelSpot}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={spotStatus === 'submitting'}>
+                    {spotStatus === 'submitting' ? 'Submitting…' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
       </APIProvider>
     </div>
   );
