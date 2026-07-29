@@ -51,10 +51,7 @@ export default function App() {
             </button>
             <button
               className="header-spot-button"
-              onClick={() => {
-                console.log('Spot a Stairway button clicked, spotMode was', spotMode);
-                setSpotMode(true);
-              }}
+              onClick={() => setSpotMode(true)}
             >
               Spot a Stairway
             </button>
