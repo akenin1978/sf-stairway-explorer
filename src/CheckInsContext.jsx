@@ -13,6 +13,11 @@ const CheckInsContext = createContext(null);
 export function CheckInsProvider({ children }) {
   const { user } = useAuth();
   const [checkedInIds, setCheckedInIds] = useState(new Set());
+  // Maps stairway_id -> ISO date string of when it was spotted. Kept
+  // alongside checkedInIds (rather than replacing it) so the many places
+  // that just need a fast "is this one checked?" lookup don't have to
+  // change.
+  const [checkedInDates, setCheckedInDates] = useState(new Map());
   const [loading, setLoading] = useState(false);
 
   // Whenever the logged-in user changes (sign in, sign out, switch
@@ -20,6 +25,7 @@ export function CheckInsProvider({ children }) {
   useEffect(() => {
     if (!user) {
       setCheckedInIds(new Set());
+      setCheckedInDates(new Map());
       return;
     }
 
@@ -28,12 +34,15 @@ export function CheckInsProvider({ children }) {
 
     supabase
       .from('check_ins')
-      .select('stairway_id')
+      .select('stairway_id, created_at')
       .eq('user_id', user.id)
       .then(({ data, error }) => {
         if (!isMounted) return;
         if (!error && data) {
           setCheckedInIds(new Set(data.map((row) => row.stairway_id)));
+          setCheckedInDates(
+            new Map(data.map((row) => [row.stairway_id, row.created_at]))
+          );
         }
         setLoading(false);
       });
@@ -58,24 +67,59 @@ export function CheckInsProvider({ children }) {
         return next;
       });
 
-      const { error } = wasChecked
-        ? await supabase
-            .from('check_ins')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('stairway_id', stairwayId)
-        : await supabase
-            .from('check_ins')
-            .insert({ user_id: user.id, stairway_id: stairwayId });
-
-      if (error) {
-        // Roll back the optimistic update since the write failed.
-        setCheckedInIds((prev) => {
-          const next = new Set(prev);
-          wasChecked ? next.add(stairwayId) : next.delete(stairwayId);
+      if (wasChecked) {
+        setCheckedInDates((prev) => {
+          const next = new Map(prev);
+          next.delete(stairwayId);
           return next;
         });
-        return { error };
+
+        const { error } = await supabase
+          .from('check_ins')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('stairway_id', stairwayId);
+
+        if (error) {
+          // Roll back -- we don't know the original created_at anymore,
+          // but re-fetching on next load will fix it; for now just mark
+          // it checked again so the UI isn't wrong about that.
+          setCheckedInIds((prev) => new Set(prev).add(stairwayId));
+          return { error };
+        }
+      } else {
+        // Optimistically use "now" until the real server timestamp comes
+        // back, so the list can sort correctly immediately.
+        const optimisticDate = new Date().toISOString();
+        setCheckedInDates((prev) =>
+          new Map(prev).set(stairwayId, optimisticDate)
+        );
+
+        const { data, error } = await supabase
+          .from('check_ins')
+          .insert({ user_id: user.id, stairway_id: stairwayId })
+          .select('created_at')
+          .single();
+
+        if (error) {
+          setCheckedInIds((prev) => {
+            const next = new Set(prev);
+            next.delete(stairwayId);
+            return next;
+          });
+          setCheckedInDates((prev) => {
+            const next = new Map(prev);
+            next.delete(stairwayId);
+            return next;
+          });
+          return { error };
+        }
+
+        if (data?.created_at) {
+          setCheckedInDates((prev) =>
+            new Map(prev).set(stairwayId, data.created_at)
+          );
+        }
       }
 
       return { error: null };
@@ -85,6 +129,7 @@ export function CheckInsProvider({ children }) {
 
   const value = {
     checkedInIds,
+    checkedInDates,
     loading,
     toggleCheckIn,
     count: checkedInIds.size,

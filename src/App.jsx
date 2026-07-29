@@ -11,6 +11,7 @@ export default function App() {
   const [feedbackStairway, setFeedbackStairway] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [spotMode, setSpotMode] = useState(false);
+  const [spottedListOpen, setSpottedListOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
   const { count: checkedInCount } = useCheckIns();
   const [totalStairways, setTotalStairways] = useState(null);
@@ -40,9 +41,12 @@ export default function App() {
         <h1>SF Stairway Spotter</h1>
         <div className="header-actions">
           {user && (
-            <span className="header-progress">
+            <button
+              className="header-progress"
+              onClick={() => setSpottedListOpen(true)}
+            >
               {checkedInCount} / {totalStairways ?? '…'} spotted
-            </span>
+            </button>
           )}
 
           <div className="header-button-group">
@@ -81,6 +85,8 @@ export default function App() {
         onRequireSignIn={() => setAuthOpen(true)}
         spotMode={spotMode}
         onCancelSpot={() => setSpotMode(false)}
+        spottedListOpen={spottedListOpen}
+        onCloseSpottedList={() => setSpottedListOpen(false)}
       />
 
       {feedbackOpen && (

@@ -89,18 +89,99 @@ function ratingKey(rating) {
   return rating == null ? 'unrated' : rating;
 }
 
+function formatSpottedDate(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 export default function StairwayMap({
   onReportIssue,
   onRequireSignIn,
   spotMode,
   onCancelSpot,
+  spottedListOpen,
+  onCloseSpottedList,
 }) {
   const [stairways, setStairways] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-  const { checkedInIds, toggleCheckIn } = useCheckIns();
+  const { checkedInIds, checkedInDates, toggleCheckIn } = useCheckIns();
+
+  // --- "My Spotted Stairways" list state ---
+  const [spottedSearch, setSpottedSearch] = useState('');
+  const [spottedSort, setSpottedSort] = useState('recent'); // recent | neighborhood | rating | stair_count
+  const [spottedNeighborhoodFilter, setSpottedNeighborhoodFilter] = useState('');
+
+  // Close the info window whenever the list panel opens, so the two don't
+  // overlap on screen.
+  useEffect(() => {
+    if (spottedListOpen) setSelected(null);
+  }, [spottedListOpen]);
+
+  const spottedStairways = useMemo(() => {
+    let list = stairways.filter((s) => checkedInIds.has(s.id));
+
+    if (spottedNeighborhoodFilter) {
+      list = list.filter((s) => s.neighborhood === spottedNeighborhoodFilter);
+    }
+
+    if (spottedSearch.trim()) {
+      const q = spottedSearch.trim().toLowerCase();
+      list = list.filter((s) => s.description?.toLowerCase().includes(q));
+    }
+
+    const sorted = [...list];
+    if (spottedSort === 'recent') {
+      sorted.sort((a, b) => {
+        const dateA = checkedInDates.get(a.id) || '';
+        const dateB = checkedInDates.get(b.id) || '';
+        return dateB.localeCompare(dateA); // newest first
+      });
+    } else if (spottedSort === 'neighborhood') {
+      sorted.sort((a, b) =>
+        (a.neighborhood || '').localeCompare(b.neighborhood || '')
+      );
+    } else if (spottedSort === 'rating') {
+      sorted.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+    } else if (spottedSort === 'stair_count') {
+      sorted.sort((a, b) => (b.stair_count ?? -1) - (a.stair_count ?? -1));
+    }
+
+    return sorted;
+  }, [
+    stairways,
+    checkedInIds,
+    checkedInDates,
+    spottedSearch,
+    spottedSort,
+    spottedNeighborhoodFilter,
+  ]);
+
+  // Only offer neighborhoods the user has actually spotted something in,
+  // rather than every neighborhood in the whole database -- keeps the
+  // filter dropdown relevant to their own progress.
+  const spottedNeighborhoods = useMemo(() => {
+    const set = new Set(
+      stairways
+        .filter((s) => checkedInIds.has(s.id))
+        .map((s) => s.neighborhood)
+        .filter(Boolean)
+    );
+    return [...set].sort();
+  }, [stairways, checkedInIds]);
+
+  function jumpToSpottedStairway(stairway) {
+    onCloseSpottedList?.();
+    setSelected(stairway);
+  }
 
   // --- "Spot a Stairway" state ---
   // spotLocation is null while the person still needs to pick where the
@@ -506,6 +587,90 @@ export default function StairwayMap({
           </div>
         )}
       </APIProvider>
+
+      {spottedListOpen && (
+        <div className="modal-backdrop" onClick={onCloseSpottedList}>
+          <div
+            className="modal-card spotted-list-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              onClick={onCloseSpottedList}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            <h2>My Spotted Stairways</h2>
+            <p className="modal-context">
+              {checkedInIds.size} / {stairways.length || '…'} spotted
+            </p>
+
+            <input
+              type="text"
+              className="spotted-search-input"
+              placeholder="Search your spotted stairways…"
+              value={spottedSearch}
+              onChange={(e) => setSpottedSearch(e.target.value)}
+            />
+
+            <div className="spotted-controls">
+              <select
+                value={spottedSort}
+                onChange={(e) => setSpottedSort(e.target.value)}
+              >
+                <option value="recent">Sort: Most recent</option>
+                <option value="neighborhood">Sort: Neighborhood</option>
+                <option value="rating">Sort: Rating</option>
+                <option value="stair_count">Sort: Stair count</option>
+              </select>
+
+              <select
+                value={spottedNeighborhoodFilter}
+                onChange={(e) => setSpottedNeighborhoodFilter(e.target.value)}
+              >
+                <option value="">All neighborhoods</option>
+                {spottedNeighborhoods.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="spotted-list">
+              {spottedStairways.length === 0 ? (
+                <p className="spotted-list-empty">
+                  {checkedInIds.size === 0
+                    ? "You haven't spotted any stairways yet -- tap a pin on the map and mark it as spotted!"
+                    : 'No spotted stairways match your search/filter.'}
+                </p>
+              ) : (
+                spottedStairways.map((s) => (
+                  <button
+                    key={s.id}
+                    className="spotted-list-item"
+                    onClick={() => jumpToSpottedStairway(s)}
+                  >
+                    <span className="spotted-list-item-desc">
+                      {s.description || 'Stairway'}
+                    </span>
+                    <span className="spotted-list-item-meta">
+                      {s.neighborhood}
+                      {s.rating != null ? ` · Rating ${s.rating}` : ''}
+                      {s.stair_count != null ? ` · ${s.stair_count} stairs` : ''}
+                    </span>
+                    <span className="spotted-list-item-date">
+                      {formatSpottedDate(checkedInDates.get(s.id))}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

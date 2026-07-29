@@ -415,6 +415,17 @@ html, body, #root {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.header-progress:hover {
+  opacity: 0.85;
 }
 
 /* --- Header layout ---
@@ -668,4 +679,84 @@ html, body, #root {
   font-size: 13px;
   cursor: pointer;
   color: #555;
+}
+
+/* --- "My Spotted Stairways" list --- */
+.spotted-list-card {
+  width: min(92vw, 480px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.spotted-search-input {
+  width: 100%;
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.spotted-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.spotted-controls select {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+}
+
+.spotted-list {
+  overflow-y: auto;
+  flex: 1;
+  border-top: 1px solid #eee;
+}
+
+.spotted-list-empty {
+  padding: 24px 8px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.spotted-list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #eee;
+  padding: 10px 4px;
+  cursor: pointer;
+}
+
+.spotted-list-item:hover {
+  background: #f7f7f7;
+}
+
+.spotted-list-item-desc {
+  font-size: 14px;
+  font-weight: 600;
+  color: #222;
+}
+
+.spotted-list-item-meta {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.spotted-list-item-date {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
 }
