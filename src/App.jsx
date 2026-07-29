@@ -10,6 +10,7 @@ export default function App() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackStairway, setFeedbackStairway] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const [spotMode, setSpotMode] = useState(false);
   const { user, loading, signOut } = useAuth();
   const { count: checkedInCount } = useCheckIns();
   const [totalStairways, setTotalStairways] = useState(null);
@@ -43,29 +44,43 @@ export default function App() {
               {checkedInCount} / {totalStairways ?? '…'} spotted
             </span>
           )}
-          <button className="header-feedback-button" onClick={openGeneralFeedback}>
-            Feedback
-          </button>
-          {!loading && (
-            user ? (
-              <div className="header-account">
-                <span className="header-account-email">{user.email}</span>
-                <button className="header-signout-button" onClick={signOut}>
-                  Log out
+
+          <div className="header-button-group">
+            <button className="header-feedback-button" onClick={openGeneralFeedback}>
+              Feedback
+            </button>
+            <button
+              className="header-spot-button"
+              onClick={() => setSpotMode(true)}
+            >
+              Spot a Stairway
+            </button>
+          </div>
+
+          <div className="header-account-area">
+            {!loading && (
+              user ? (
+                <div className="header-account">
+                  <span className="header-account-email">{user.email}</span>
+                  <button className="header-signout-button" onClick={signOut}>
+                    Log out
+                  </button>
+                </div>
+              ) : (
+                <button className="header-signin-button" onClick={() => setAuthOpen(true)}>
+                  Sign in
                 </button>
-              </div>
-            ) : (
-              <button className="header-signin-button" onClick={() => setAuthOpen(true)}>
-                Sign in
-              </button>
-            )
-          )}
+              )
+            )}
+          </div>
         </div>
       </header>
 
       <StairwayMap
         onReportIssue={openStairwayFeedback}
         onRequireSignIn={() => setAuthOpen(true)}
+        spotMode={spotMode}
+        onCancelSpot={() => setSpotMode(false)}
       />
 
       {feedbackOpen && (

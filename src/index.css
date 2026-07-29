@@ -32,7 +32,6 @@ html, body, #root {
 }
 
 .header-feedback-button {
-  margin-left: auto;
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.4);
   color: white;
@@ -416,4 +415,257 @@ html, body, #root {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* --- Header layout ---
+   The whole actions area is pushed to the right of the header. Within it,
+   two clusters: the feature buttons (Feedback, Spot a Stairway) grouped
+   close together, then a clear gap before the account area (Sign in /
+   email + Log out), so account controls read as a distinct, separate
+   group on the far right rather than crowding the feature buttons. */
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-button-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-account-area {
+  margin-left: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.header-spot-button {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.header-spot-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.header-signin-button {
+  background: white;
+  border: none;
+  color: #4b3ce0;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.header-signin-button:hover {
+  background: #f0f0f0;
+}
+
+.header-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-account-email {
+  font-size: 13px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-signout-button {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.header-signout-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* --- Auth modal (sign in / sign up) --- */
+.google-signin-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+}
+
+.google-signin-button:hover {
+  background: #f7f7f7;
+}
+
+.google-signin-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+  margin: 16px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.auth-divider span {
+  padding: 0 10px;
+}
+
+.auth-switch {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: #555;
+  text-align: center;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: #4b3ce0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* --- "Spot a Stairway" flow --- */
+.spot-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: min(90vw, 420px);
+  text-align: center;
+  font-size: 13px;
+}
+
+.spot-banner-error {
+  color: #c62828;
+  font-size: 12px;
+}
+
+.spot-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.spot-banner-actions button {
+  background: #4b3ce0;
+  border: none;
+  color: white;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.spot-banner-actions button:last-child {
+  background: #eee;
+  color: #333;
+}
+
+.spot-form-card {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+  padding: 16px;
+  width: min(90vw, 340px);
+}
+
+.spot-form-card h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.spot-form-card textarea,
+.spot-form-card input {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.spot-form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.spot-form-buttons button[type='submit'] {
+  background: #4b3ce0;
+  border: none;
+  color: white;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.spot-form-buttons button[type='submit']:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.spot-form-cancel {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #555;
 }
