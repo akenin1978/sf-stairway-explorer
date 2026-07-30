@@ -13,15 +13,16 @@ const SF_CENTER = { lat: 37.7749, lng: -122.4194 };
 // intentionally generous around the city's actual edges (Ocean Beach,
 // McLaren Park/Crocker-Amazon in the south, the Presidio/Golden Gate Bridge
 // in the north, Bayview/Hunters Point in the east) with a little padding.
-// The northern bound in particular has extra headroom beyond Alcatraz/the
-// bridge themselves -- MapPanner (below) needs room to pan further north
-// to reveal a full info window card on mobile; without this buffer, the
-// strict bounds cut that pan short and the top of the card gets clipped
-// for stairways right at the old edge.
+// The northern and western bounds in particular have extra headroom
+// beyond the city's actual edges (Alcatraz/the bridge to the north, Ocean
+// Beach/Great Highway to the west) -- Google's info-window auto-pan
+// needs room to shift the map to reveal a full card on mobile; without
+// this buffer, the strict bounds cut that pan short and the card gets
+// clipped at the top or left edge for stairways right at the old edges.
 const SF_BOUNDS = {
   north: 37.87,
   south: 37.703,
-  west: -122.515,
+  west: -122.55,
   east: -122.35,
 };
 
