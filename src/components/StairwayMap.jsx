@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { APIProvider, Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 import { useCheckIns } from '../CheckInsContext';
@@ -41,6 +41,25 @@ function uncroppedPhotoUrl(url) {
 
 function ratingKey(rating) {
   return rating == null ? 'unrated' : rating;
+}
+
+// Purely cosmetic-but-necessary: gently centers the map on whichever
+// stairway is selected. Google's own InfoWindow auto-pan is supposed to
+// handle bringing a tapped/off-screen marker into view on its own, but in
+// practice that's not reliable enough by itself on mobile -- especially
+// once our own max-height/overflow-y CSS on the card content is in the
+// mix. This is intentionally simple (no DOM measurement, no timing
+// dependency on photos loading) specifically so it can't reintroduce the
+// fragility of the old pixel-measuring approach we removed earlier.
+function MapRecenter({ target }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !target) return;
+    map.panTo({ lat: target.latitude, lng: target.longitude });
+  }, [map, target]);
+
+  return null;
 }
 
 function formatSpottedDate(isoString) {
@@ -355,6 +374,7 @@ export default function StairwayMap({
             strictBounds: true,
           }}
         >
+          <MapRecenter target={selected} />
           {visibleStairways.map((s) => {
             const style = getRatingStyle(s.rating);
             const isChecked = checkedInIds.has(s.id);
