@@ -344,7 +344,8 @@ html, body, #root {
 }
 
 .gm-style-iw-d {
-  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: auto !important;
   padding: 0 !important;
 }
 
