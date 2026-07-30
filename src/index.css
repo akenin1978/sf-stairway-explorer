@@ -298,42 +298,23 @@ html, body, #root {
 }
 
 .info-window {
+  max-width: 260px;
+  position: relative;
+  padding-right: 22px; /* leaves room so the close button never overlaps the title text */
   /* Safety net: no matter how tall a card gets (long description + full
      photo) or how short the screen is, this guarantees the whole thing is
-     always reachable by scrolling within the card itself. */
+     always reachable by scrolling within the card itself -- on top of the
+     generous map bounds (see SF_BOUNDS in StairwayMap.jsx) that should
+     make this rarely necessary in the first place. */
   max-height: 70vh;
   max-height: 70dvh;
   overflow-y: auto;
 }
 
-.stairway-detail-card {
-  /* Slides up from the bottom of the screen (like Google Maps' own app)
-     instead of floating in the dead center -- keeps some sense of "you
-     just tapped something," while staying just as reliable as a centered
-     modal would be: this is still position:fixed relative to the actual
-     screen, completely independent of the marker's position, zoom level,
-     or where the stairway sits on the map. */
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 420px;
-  margin: 0;
-  border-radius: 16px 16px 0 0;
-  padding: 12px 16px 20px;
-  max-height: 85vh;
-  max-height: 85dvh;
-}
-
-.stairway-detail-card img {
-  max-height: 260px; /* noticeably more prominent than before */
-}
-
 .info-window img {
   display: block;
   max-width: 100%;
-  max-height: 180px;
+  max-height: 260px; /* bigger and more prominent than before */
   width: auto;
   height: auto;
   object-fit: contain;
@@ -341,10 +322,61 @@ html, body, #root {
   margin: 6px auto 0;
 }
 
+.info-window h3 {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+}
+
 .info-window p {
   margin: 4px 0;
   font-size: 13px;
   color: #444;
+}
+
+/* --- Google's own InfoWindow chrome ---
+   Google Maps reserves generous default padding around every InfoWindow,
+   including extra space at the top to make room for the close ("x")
+   button -- this is what causes an oversized gap above the card content
+   on small screens. These target Google's own injected classes (not
+   ours) to tighten that padding and reposition the close button snugly
+   in the corner instead. */
+.gm-style-iw-c {
+  padding: 8px !important;
+}
+
+.gm-style-iw-d {
+  overflow-x: visible !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+}
+
+/* We use our own close button (below) instead, since it's positioned
+   exactly where we want it -- Google's default one sits inside extra
+   wrapper chrome we can't fully control, which kept leaving a gap above
+   the title even after tightening the container padding. */
+.gm-ui-hover-effect {
+  display: none !important;
+}
+
+.info-window-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  /* lines up the "x" with the first line of bold title text next to it */
+  transform: translateY(-2px);
+}
+
+.info-window-close:hover {
+  color: #000;
 }
 
 .checkin-toggle {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { APIProvider, Map, Marker, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 import { useCheckIns } from '../CheckInsContext';
@@ -9,18 +9,21 @@ import { getRatingStyle } from '../ratingColors';
 const SF_CENTER = { lat: 37.7749, lng: -122.4194 };
 
 // Keeps the map locked to San Francisco proper -- including Treasure Island
-// and Alcatraz -- so it can't be panned out across the country. All four
-// sides have extra headroom beyond the city's actual edges (Ocean Beach in
-// the west, McLaren Park/Crocker-Amazon in the south, the Presidio/Golden
-// Gate Bridge in the north, Bayview/Hunters Point in the east) -- Google's
-// info-window auto-pan needs room to shift the map to reveal a full card
-// on mobile; without this buffer, the strict bounds cut that pan short and
-// the card gets clipped at whichever edge a stairway sits closest to.
+// and Alcatraz -- so it can't be panned out across the country, while
+// giving Google's own info-window auto-pan (never disabled) enough room
+// to shift the map and reveal a full card, even at the map's minimum zoom
+// (11) where each on-screen pixel covers the most ground and a card needs
+// the most degrees of "pan budget" to fully come into view. Worked out
+// from the actual pixel-to-degree math at zoom 11 for SF's latitude
+// (~60m/pixel), sized for a generously tall card (~500px): about 0.3
+// degrees of latitude and 0.35 degrees of longitude beyond the city's
+// true edges. Still just Bay Area (Marin/Peninsula/East Bay suburbs, or
+// open ocean to the west) -- nowhere near "the rest of the country."
 const SF_BOUNDS = {
-  north: 37.87,
-  south: 37.668,
-  west: -122.55,
-  east: -122.315,
+  north: 38.135,
+  south: 37.403,
+  west: -122.865,
+  east: -122.0,
 };
 
 // The set of rating "buckets" that can be toggled on/off: 5 down to 1, plus
@@ -38,25 +41,6 @@ function uncroppedPhotoUrl(url) {
 
 function ratingKey(rating) {
   return rating == null ? 'unrated' : rating;
-}
-
-// Purely cosmetic: gently centers the map on whichever stairway is
-// selected, so there's some visual continuity between tapping a pin (or
-// jumping to one from the spotted list) and where the map ends up. This
-// is intentionally simple -- no DOM measurement, no timing dependency on
-// photos loading -- specifically so it can't reintroduce the fragility we
-// just removed. If anything about this ever misbehaves, the detail modal
-// itself is completely unaffected either way, since it no longer depends
-// on the map's position at all.
-function MapRecenter({ target }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!map || !target) return;
-    map.panTo({ lat: target.latitude, lng: target.longitude });
-  }, [map, target]);
-
-  return null;
 }
 
 function formatSpottedDate(isoString) {
@@ -371,7 +355,6 @@ export default function StairwayMap({
             strictBounds: true,
           }}
         >
-          <MapRecenter target={selected} />
           {visibleStairways.map((s) => {
             const style = getRatingStyle(s.rating);
             const isChecked = checkedInIds.has(s.id);
@@ -411,6 +394,69 @@ export default function StairwayMap({
                 scale: 10,
               }}
             />
+          )}
+
+          {selected && !spotMode && (
+            <InfoWindow
+              position={{ lat: selected.latitude, lng: selected.longitude }}
+              onCloseClick={() => setSelected(null)}
+            >
+              <div className="info-window">
+                <button
+                  className="info-window-close"
+                  onClick={() => setSelected(null)}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+                <h3>{selected.neighborhood || 'Stairway'}</h3>
+
+                <p>{selected.description}</p>
+                {selected.rating != null && <p>Rating: {selected.rating}</p>}
+                {selected.stair_count != null && (
+                  <p>{selected.stair_count} stairs</p>
+                )}
+                {selected.direct_photo_url ? (
+                  <img
+                    src={uncroppedPhotoUrl(selected.direct_photo_url)}
+                    alt={selected.description}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : selected.photo_url ? (
+                  <p>
+                    <a href={selected.photo_url} target="_blank" rel="noreferrer">
+                      View photo on Google Photos ↗
+                    </a>
+                  </p>
+                ) : null}
+
+                {user ? (
+                  <button
+                    className={
+                      'checkin-toggle' +
+                      (checkedInIds.has(selected.id) ? ' checked' : '')
+                    }
+                    onClick={() => toggleCheckIn(selected.id)}
+                  >
+                    {checkedInIds.has(selected.id) ? '✓ Spotted' : 'Mark as spotted'}
+                  </button>
+                ) : (
+                  <button
+                    className="checkin-toggle signin-prompt"
+                    onClick={() => onRequireSignIn?.()}
+                  >
+                    Sign in to save your spots
+                  </button>
+                )}
+
+                <button
+                  className="report-issue-link"
+                  onClick={() => onReportIssue?.(selected)}
+                >
+                  Report an issue with this stairway
+                </button>
+              </div>
+            </InfoWindow>
           )}
         </Map>
 
@@ -505,70 +551,6 @@ export default function StairwayMap({
           </div>
         )}
       </APIProvider>
-
-      {selected && !spotMode && (
-        <div className="modal-backdrop" onClick={() => setSelected(null)}>
-          <div
-            className="modal-card info-window stairway-detail-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className="modal-close"
-              onClick={() => setSelected(null)}
-              aria-label="Close"
-            >
-              ×
-            </button>
-
-            <h2>{selected.neighborhood || 'Stairway'}</h2>
-
-            <p>{selected.description}</p>
-            {selected.rating != null && <p>Rating: {selected.rating}</p>}
-            {selected.stair_count != null && (
-              <p>{selected.stair_count} stairs</p>
-            )}
-            {selected.direct_photo_url ? (
-              <img
-                src={uncroppedPhotoUrl(selected.direct_photo_url)}
-                alt={selected.description}
-                referrerPolicy="no-referrer"
-              />
-            ) : selected.photo_url ? (
-              <p>
-                <a href={selected.photo_url} target="_blank" rel="noreferrer">
-                  View photo on Google Photos ↗
-                </a>
-              </p>
-            ) : null}
-
-            {user ? (
-              <button
-                className={
-                  'checkin-toggle' +
-                  (checkedInIds.has(selected.id) ? ' checked' : '')
-                }
-                onClick={() => toggleCheckIn(selected.id)}
-              >
-                {checkedInIds.has(selected.id) ? '✓ Spotted' : 'Mark as spotted'}
-              </button>
-            ) : (
-              <button
-                className="checkin-toggle signin-prompt"
-                onClick={() => onRequireSignIn?.()}
-              >
-                Sign in to save your spots
-              </button>
-            )}
-
-            <button
-              className="report-issue-link"
-              onClick={() => onReportIssue?.(selected)}
-            >
-              Report an issue with this stairway
-            </button>
-          </div>
-        </div>
-      )}
 
       {spottedListOpen && (
         <div className="modal-backdrop" onClick={onCloseSpottedList}>
