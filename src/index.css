@@ -299,6 +299,15 @@ html, body, #root {
 
 .info-window {
   max-width: 240px;
+  /* Safety net: no matter how tall a card gets (long description + full
+     photo) or how short the screen is, this guarantees the whole thing is
+     always reachable by scrolling within the card itself, rather than
+     depending entirely on the map having enough room to pan the card into
+     view -- which isn't always possible for stairways right at the edges
+     of the map (Alcatraz, Yerba Buena Island) on a short mobile screen. */
+  max-height: 70vh;
+  max-height: 70dvh;
+  overflow-y: auto;
 }
 
 .info-window img {
