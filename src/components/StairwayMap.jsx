@@ -57,6 +57,17 @@ function MapRecenter({ target }) {
   useEffect(() => {
     if (!map || !target) return;
     map.panTo({ lat: target.latitude, lng: target.longitude });
+    // Dead-centering the marker only leaves half the screen's height
+    // above it -- often not enough room for a tall card (long
+    // description + full photo). Shifting the marker further down the
+    // screen leaves much more headroom above it for the card to actually
+    // fit. This is a fixed, deterministic offset (not a measurement of
+    // the actual card), so it can't reintroduce the fragility of the
+    // pixel-measuring approach we removed earlier -- it's a reasonable
+    // one-size-fits-most adjustment, backed up by the card's own
+    // internal scroll (see .info-window CSS) for the rare card that's
+    // still too tall even with this extra room.
+    map.panBy(0, -140);
   }, [map, target]);
 
   return null;
