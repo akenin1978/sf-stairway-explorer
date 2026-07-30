@@ -298,13 +298,12 @@ html, body, #root {
 }
 
 .info-window {
-  max-width: 240px;
   /* Safety net: no matter how tall a card gets (long description + full
      photo) or how short the screen is, this guarantees the whole thing is
-     always reachable by scrolling within the card itself, rather than
-     depending entirely on the map having enough room to pan the card into
-     view -- which isn't always possible for stairways right at the edges
-     of the map (Alcatraz, Yerba Buena Island) on a short mobile screen. */
+     always reachable by scrolling within the card itself. This matters
+     even more now that the card is a plain viewport-centered modal
+     (rather than a marker-anchored Google InfoWindow) -- it's the actual
+     content, not map panning, that guarantees everything stays readable. */
   max-height: 70vh;
   max-height: 70dvh;
   overflow-y: auto;
@@ -321,66 +320,10 @@ html, body, #root {
   margin: 6px auto 0;
 }
 
-.info-window h3 {
-  margin: 0 0 4px 0;
-  font-size: 15px;
-}
-
 .info-window p {
   margin: 4px 0;
   font-size: 13px;
   color: #444;
-}
-
-/* --- Google's own InfoWindow chrome ---
-   Google Maps reserves generous default padding around every InfoWindow,
-   including extra space at the top to make room for the close ("x") button
-   -- this is what causes the oversized top gap above the card content on
-   small screens. These target Google's own injected classes (not ours) to
-   tighten that padding and reposition the close button snugly in the
-   corner instead. */
-.gm-style-iw-c {
-  padding: 8px !important;
-}
-
-.gm-style-iw-d {
-  overflow-x: visible !important;
-  overflow-y: auto !important;
-  padding: 0 !important;
-}
-
-/* We use our own close button (below) instead, since it's positioned
-   exactly where we want it -- Google's default one sits inside extra
-   wrapper chrome we can't fully control, which kept leaving a gap above
-   the title even after tightening the container padding. */
-.gm-ui-hover-effect {
-  display: none !important;
-}
-
-.info-window {
-  position: relative;
-  padding-right: 22px; /* leaves room so the close button never overlaps the title text */
-}
-
-.info-window-close {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 20px;
-  height: 20px;
-  line-height: 20px;
-  padding: 0;
-  border: none;
-  background: none;
-  font-size: 20px;
-  color: #666;
-  cursor: pointer;
-  /* lines up the "x" with the first line of bold title text next to it */
-  transform: translateY(-2px);
-}
-
-.info-window-close:hover {
-  color: #000;
 }
 
 .checkin-toggle {

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
+import { useEffect, useMemo, useState } from 'react';
+import { APIProvider, Map, Marker, useMap } from '@vis.gl/react-google-maps';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 import { useCheckIns } from '../CheckInsContext';
@@ -36,55 +36,27 @@ function uncroppedPhotoUrl(url) {
   return url.replace(/=[^=]*$/, '=w1200');
 }
 
-// When a marker is tapped, its info window (with photo, description, etc.)
-// opens ABOVE the pin. On a small phone screen, if the pin is anywhere near
-// the top of the visible map, that card can get cut off -- and since the
-// photo loads in *after* the card first appears, the card grows taller
-// partway through, so a pan calculated up front can go stale the moment the
-// photo finishes loading.
-//
-// Instead of guessing a fixed offset, this measures the actual on-screen
-// position of the rendered info window (via infoWindowRef) against the
-// map's own bounding box, and pans by exactly the pixel amount needed to
-// bring its top edge fully into view -- re-checking whenever `photoLoaded`
-// flips true so the final, photo-included height is accounted for.
-const TOP_MARGIN_PX = 16; // small breathing room from the map's top edge
+function ratingKey(rating) {
+  return rating == null ? 'unrated' : rating;
+}
 
-function MapPanner({ target, photoLoaded, infoWindowRef }) {
+// Purely cosmetic: gently centers the map on whichever stairway is
+// selected, so there's some visual continuity between tapping a pin (or
+// jumping to one from the spotted list) and where the map ends up. This
+// is intentionally simple -- no DOM measurement, no timing dependency on
+// photos loading -- specifically so it can't reintroduce the fragility we
+// just removed. If anything about this ever misbehaves, the detail modal
+// itself is completely unaffected either way, since it no longer depends
+// on the map's position at all.
+function MapRecenter({ target }) {
   const map = useMap();
 
   useEffect(() => {
     if (!map || !target) return;
-
-    // Defer to the next tick so the InfoWindow has actually painted (and,
-    // on the photoLoaded pass, so the <img> has taken up its final space)
-    // before we measure it.
-    const timeoutId = setTimeout(() => {
-      const mapDiv = map.getDiv();
-      const infoEl = infoWindowRef.current;
-      if (!mapDiv || !infoEl) return;
-
-      const mapRect = mapDiv.getBoundingClientRect();
-      const infoRect = infoEl.getBoundingClientRect();
-
-      const overflowTop = mapRect.top + TOP_MARGIN_PX - infoRect.top;
-      if (overflowTop > 0) {
-        // Card's top is above the visible map area (or too close to the
-        // edge) -- shift the map so the card moves down by exactly that
-        // many pixels. Negative y moves the map's center north, which
-        // shifts on-screen content down.
-        map.panBy(0, -overflowTop);
-      }
-    }, 0);
-
-    return () => clearTimeout(timeoutId);
-  }, [map, target, photoLoaded, infoWindowRef]);
+    map.panTo({ lat: target.latitude, lng: target.longitude });
+  }, [map, target]);
 
   return null;
-}
-
-function ratingKey(rating) {
-  return rating == null ? 'unrated' : rating;
 }
 
 function formatSpottedDate(isoString) {
@@ -250,16 +222,6 @@ export default function StairwayMap({
     }
   }
 
-  // Tracks whether the currently-open info window's photo has finished
-  // loading, so MapPanner can re-measure and re-pan once the card reaches
-  // its final height. Reset any time a different stairway is selected.
-  const [photoLoaded, setPhotoLoaded] = useState(false);
-  const infoWindowRef = useRef(null);
-
-  useEffect(() => {
-    setPhotoLoaded(false);
-  }, [selected]);
-
   // Which rating buckets are currently visible on the map. Starts with
   // everything shown, same as before this feature existed.
   const [visibleRatings, setVisibleRatings] = useState(new Set(ALL_RATING_KEYS));
@@ -409,12 +371,7 @@ export default function StairwayMap({
             strictBounds: true,
           }}
         >
-          <MapPanner
-            target={selected}
-            photoLoaded={photoLoaded}
-            infoWindowRef={infoWindowRef}
-          />
-
+          <MapRecenter target={selected} />
           {visibleStairways.map((s) => {
             const style = getRatingStyle(s.rating);
             const isChecked = checkedInIds.has(s.id);
@@ -442,72 +399,6 @@ export default function StairwayMap({
             );
           })}
 
-          {selected && !spotMode && (
-            <InfoWindow
-              position={{ lat: selected.latitude, lng: selected.longitude }}
-              onCloseClick={() => setSelected(null)}
-            >
-              <div className="info-window" ref={infoWindowRef}>
-                <button
-                  className="info-window-close"
-                  onClick={() => setSelected(null)}
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-                <h3>{selected.neighborhood || 'Stairway'}</h3>
-
-                <p>{selected.description}</p>
-                {selected.rating != null && (
-                  <p>Rating: {selected.rating}</p>
-                )}
-                {selected.stair_count != null && (
-                  <p>{selected.stair_count} stairs</p>
-                )}
-                {selected.direct_photo_url ? (
-                  <img
-                    src={uncroppedPhotoUrl(selected.direct_photo_url)}
-                    alt={selected.description}
-                    referrerPolicy="no-referrer"
-                    onLoad={() => setPhotoLoaded(true)}
-                    onError={() => setPhotoLoaded(true)}
-                  />
-                ) : selected.photo_url ? (
-                  <p>
-                    <a href={selected.photo_url} target="_blank" rel="noreferrer">
-                      View photo on Google Photos ↗
-                    </a>
-                  </p>
-                ) : null}
-
-                {user ? (
-                  <button
-                    className={
-                      'checkin-toggle' +
-                      (checkedInIds.has(selected.id) ? ' checked' : '')
-                    }
-                    onClick={() => toggleCheckIn(selected.id)}
-                  >
-                    {checkedInIds.has(selected.id) ? '✓ Spotted' : 'Mark as spotted'}
-                  </button>
-                ) : (
-                  <button
-                    className="checkin-toggle signin-prompt"
-                    onClick={() => onRequireSignIn?.()}
-                  >
-                    Sign in to save your spots
-                  </button>
-                )}
-
-                <button
-                  className="report-issue-link"
-                  onClick={() => onReportIssue?.(selected)}
-                >
-                  Report an issue with this stairway
-                </button>
-              </div>
-            </InfoWindow>
-          )}
           {spotMode && spotLocation && (
             <Marker
               position={{ lat: spotLocation.lat, lng: spotLocation.lng }}
@@ -614,6 +505,70 @@ export default function StairwayMap({
           </div>
         )}
       </APIProvider>
+
+      {selected && !spotMode && (
+        <div className="modal-backdrop" onClick={() => setSelected(null)}>
+          <div
+            className="modal-card info-window stairway-detail-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              onClick={() => setSelected(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            <h2>{selected.neighborhood || 'Stairway'}</h2>
+
+            <p>{selected.description}</p>
+            {selected.rating != null && <p>Rating: {selected.rating}</p>}
+            {selected.stair_count != null && (
+              <p>{selected.stair_count} stairs</p>
+            )}
+            {selected.direct_photo_url ? (
+              <img
+                src={uncroppedPhotoUrl(selected.direct_photo_url)}
+                alt={selected.description}
+                referrerPolicy="no-referrer"
+              />
+            ) : selected.photo_url ? (
+              <p>
+                <a href={selected.photo_url} target="_blank" rel="noreferrer">
+                  View photo on Google Photos ↗
+                </a>
+              </p>
+            ) : null}
+
+            {user ? (
+              <button
+                className={
+                  'checkin-toggle' +
+                  (checkedInIds.has(selected.id) ? ' checked' : '')
+                }
+                onClick={() => toggleCheckIn(selected.id)}
+              >
+                {checkedInIds.has(selected.id) ? '✓ Spotted' : 'Mark as spotted'}
+              </button>
+            ) : (
+              <button
+                className="checkin-toggle signin-prompt"
+                onClick={() => onRequireSignIn?.()}
+              >
+                Sign in to save your spots
+              </button>
+            )}
+
+            <button
+              className="report-issue-link"
+              onClick={() => onReportIssue?.(selected)}
+            >
+              Report an issue with this stairway
+            </button>
+          </div>
+        </div>
+      )}
 
       {spottedListOpen && (
         <div className="modal-backdrop" onClick={onCloseSpottedList}>
