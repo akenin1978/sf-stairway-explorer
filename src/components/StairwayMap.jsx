@@ -9,21 +9,18 @@ import { getRatingStyle } from '../ratingColors';
 const SF_CENTER = { lat: 37.7749, lng: -122.4194 };
 
 // Keeps the map locked to San Francisco proper -- including Treasure Island
-// and Alcatraz -- so it can't be panned out across the country. Bounds are
-// intentionally generous around the city's actual edges (Ocean Beach,
-// McLaren Park/Crocker-Amazon in the south, the Presidio/Golden Gate Bridge
-// in the north, Bayview/Hunters Point in the east) with a little padding.
-// The northern and western bounds in particular have extra headroom
-// beyond the city's actual edges (Alcatraz/the bridge to the north, Ocean
-// Beach/Great Highway to the west) -- Google's info-window auto-pan
-// needs room to shift the map to reveal a full card on mobile; without
-// this buffer, the strict bounds cut that pan short and the card gets
-// clipped at the top or left edge for stairways right at the old edges.
+// and Alcatraz -- so it can't be panned out across the country. All four
+// sides have extra headroom beyond the city's actual edges (Ocean Beach in
+// the west, McLaren Park/Crocker-Amazon in the south, the Presidio/Golden
+// Gate Bridge in the north, Bayview/Hunters Point in the east) -- Google's
+// info-window auto-pan needs room to shift the map to reveal a full card
+// on mobile; without this buffer, the strict bounds cut that pan short and
+// the card gets clipped at whichever edge a stairway sits closest to.
 const SF_BOUNDS = {
   north: 37.87,
-  south: 37.703,
+  south: 37.668,
   west: -122.55,
-  east: -122.35,
+  east: -122.315,
 };
 
 // The set of rating "buckets" that can be toggled on/off: 5 down to 1, plus
