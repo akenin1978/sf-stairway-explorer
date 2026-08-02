@@ -73,6 +73,66 @@ function MapRecenter({ target }) {
   return null;
 }
 
+// Pans (and zooms in on) the map whenever a new "my location" result comes
+// in. Mirrors MapRecenter above -- same simple, no-DOM-measurement approach.
+function PanToUserLocation({ target }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !target) return;
+    map.panTo({ lat: target.lat, lng: target.lng });
+    map.setZoom(16);
+  }, [map, target]);
+
+  return null;
+}
+
+// The round "locate me" button that floats over the map, bottom-right,
+// positioned above Google's own zoom controls so the two don't overlap.
+function LocateMeButton({ onLocate, locating }) {
+  return (
+    <button
+      type="button"
+      className="locate-me-button"
+      onClick={onLocate}
+      disabled={locating}
+      aria-label="Find my location"
+      title="Find my location"
+      style={{
+        position: 'absolute',
+        bottom: '96px',
+        right: '10px',
+        width: '40px',
+        height: '40px',
+        borderRadius: '50%',
+        border: 'none',
+        background: '#ffffff',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: locating ? 'default' : 'pointer',
+        padding: 0,
+        zIndex: 5,
+      }}
+    >
+      {locating ? (
+        <span style={{ fontSize: '14px' }}>…</span>
+      ) : (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="3" fill="#4285F4" />
+          <path
+            d="M12 2 L12 5 M12 19 L12 22 M2 12 L5 12 M19 12 L22 12"
+            stroke="#4285F4"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 function formatSpottedDate(isoString) {
   if (!isoString) return '';
   const date = new Date(isoString);
@@ -192,6 +252,34 @@ export default function StairwayMap({
       setSelected(null);
     }
   }, [spotMode]);
+
+  // --- "Locate me" (general map button, separate from the Spot-a-Stairway
+  // "use my location" flow above) ---
+  const [myLocation, setMyLocation] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState('');
+
+  function handleLocateMe() {
+    if (!navigator.geolocation) {
+      setLocationError('Location services are not available in this browser.');
+      return;
+    }
+    setLocating(true);
+    setLocationError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
+      () => {
+        setLocationError(
+          "Couldn't get your location -- check your device's location permissions."
+        );
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   function handleUseMyLocation() {
     if (!navigator.geolocation) {
@@ -386,6 +474,21 @@ export default function StairwayMap({
           }}
         >
           <MapRecenter target={selected} />
+          <PanToUserLocation target={myLocation} />
+          {myLocation && (
+            <Marker
+              position={myLocation}
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                fillColor: '#4285F4',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 2,
+                scale: 7,
+              }}
+              zIndex={999}
+            />
+          )}
           {visibleStairways.map((s) => {
             const style = getRatingStyle(s.rating);
             const isChecked = checkedInIds.has(s.id);
@@ -490,6 +593,27 @@ export default function StairwayMap({
             </InfoWindow>
           )}
         </Map>
+
+        <LocateMeButton onLocate={handleLocateMe} locating={locating} />
+        {locationError && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '142px',
+              right: '10px',
+              maxWidth: '220px',
+              background: '#ffffff',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              borderRadius: '8px',
+              padding: '8px 10px',
+              fontSize: '13px',
+              color: '#c0392b',
+              zIndex: 5,
+            }}
+          >
+            {locationError}
+          </div>
+        )}
 
         <MapControlsPanel
           visibleRatings={visibleRatings}
