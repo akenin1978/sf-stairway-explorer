@@ -120,10 +120,10 @@ function LocateMeButton({ onLocate, locating }) {
         <span style={{ fontSize: '14px' }}>…</span>
       ) : (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="3" fill="#4285F4" />
+          <circle cx="12" cy="12" r="3" fill="#4b3ce0" />
           <path
             d="M12 2 L12 5 M12 19 L12 22 M2 12 L5 12 M19 12 L22 12"
-            stroke="#4285F4"
+            stroke="#4b3ce0"
             strokeWidth="2"
             strokeLinecap="round"
           />
@@ -476,18 +476,36 @@ export default function StairwayMap({
           <MapRecenter target={selected} />
           <PanToUserLocation target={myLocation} />
           {myLocation && (
-            <Marker
-              position={myLocation}
-              icon={{
-                path: window.google.maps.SymbolPath.CIRCLE,
-                fillColor: '#4285F4',
-                fillOpacity: 1,
-                strokeColor: '#ffffff',
-                strokeWeight: 2,
-                scale: 7,
-              }}
-              zIndex={999}
-            />
+            <>
+              {/* Soft outer halo -- makes this read as "a location marker"
+                  rather than just another colored dot, distinct in both
+                  shape and color from every rating marker on the map. */}
+              <Marker
+                position={myLocation}
+                icon={{
+                  path: window.google.maps.SymbolPath.CIRCLE,
+                  fillColor: '#4b3ce0',
+                  fillOpacity: 0.2,
+                  strokeWeight: 0,
+                  scale: 18,
+                }}
+                zIndex={998}
+                clickable={false}
+              />
+              <Marker
+                position={myLocation}
+                icon={{
+                  path: window.google.maps.SymbolPath.CIRCLE,
+                  fillColor: '#4b3ce0',
+                  fillOpacity: 1,
+                  strokeColor: '#ffffff',
+                  strokeWeight: 2,
+                  scale: 7,
+                }}
+                zIndex={999}
+                clickable={false}
+              />
+            </>
           )}
           {visibleStairways.map((s) => {
             const style = getRatingStyle(s.rating);
