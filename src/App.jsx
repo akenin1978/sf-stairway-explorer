@@ -13,7 +13,7 @@ export default function App() {
   const [spotMode, setSpotMode] = useState(false);
   const [spottedListOpen, setSpottedListOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
-  const { count: checkedInCount } = useCheckIns();
+  const { count: checkedInCount, verifiedCount } = useCheckIns();
   const [totalStairways, setTotalStairways] = useState(null);
 
   useEffect(() => {
@@ -46,6 +46,7 @@ export default function App() {
               onClick={() => setSpottedListOpen(true)}
             >
               {checkedInCount} / {totalStairways ?? '…'} spotted
+              {verifiedCount > 0 ? ` (${verifiedCount} verified)` : ''}
             </button>
           )}
 
