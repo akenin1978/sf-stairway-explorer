@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Filter } from 'bad-words';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
+
+const profanityFilter = new Filter();
 
 export default function SettingsModal({ onClose }) {
   const { user } = useAuth();
@@ -45,20 +48,66 @@ export default function SettingsModal({ onClose }) {
     setStatus('saving');
     setErrorMsg('');
 
+    const trimmedName = displayName.trim();
+
+    // Only a display name that's actually going to be shown (leaderboard
+    // opted in) needs to pass these checks -- an empty/unused name is
+    // always fine.
+    if (leaderboardOptIn && trimmedName) {
+      if (profanityFilter.isProfane(trimmedName)) {
+        setStatus('error');
+        setErrorMsg(
+          'That display name isn\'t allowed. Please choose something else.'
+        );
+        return;
+      }
+
+      // Case-insensitive check against everyone else's display name. The
+      // database also enforces this for real (two people can't end up
+      // with the same name even if they both hit save at the same
+      // moment) -- this is just for instant, friendly feedback before
+      // that.
+      const { data: existing, error: lookupError } = await supabase
+        .from('user_settings')
+        .select('user_id')
+        .ilike('display_name', trimmedName)
+        .neq('user_id', user.id)
+        .maybeSingle();
+
+      if (lookupError) {
+        setStatus('error');
+        setErrorMsg(lookupError.message);
+        return;
+      }
+
+      if (existing) {
+        setStatus('error');
+        setErrorMsg('That display name is already taken. Try another.');
+        return;
+      }
+    }
+
     const { error } = await supabase.from('user_settings').upsert(
       {
         user_id: user.id,
         leaderboard_opt_in: leaderboardOptIn,
         // Store an empty display name as null, not an empty string, so
         // it's unambiguous that nothing was set.
-        display_name: displayName.trim() || null,
+        display_name: trimmedName || null,
       },
       { onConflict: 'user_id' }
     );
 
     if (error) {
       setStatus('error');
-      setErrorMsg(error.message);
+      // The database's own uniqueness rule is the real backstop -- if
+      // someone else grabbed the same name in the split second between
+      // our check above and this save, this is what catches it.
+      if (error.code === '23505') {
+        setErrorMsg('That display name is already taken. Try another.');
+      } else {
+        setErrorMsg(error.message);
+      }
     } else {
       setStatus('saved');
     }
@@ -83,8 +132,7 @@ export default function SettingsModal({ onClose }) {
                   Show me on the leaderboard
                 </span>
                 <span className="settings-toggle-hint">
-                  Off by default. Only photo-verified check-ins count toward
-                  it.
+                  Only photo-verified check-ins count toward it.
                 </span>
               </span>
               <span className="settings-toggle">
@@ -118,7 +166,7 @@ export default function SettingsModal({ onClose }) {
             )}
 
             {status === 'error' && (
-              <p className="modal-error">Something went wrong: {errorMsg}</p>
+              <p className="modal-error">{errorMsg}</p>
             )}
             {status === 'saved' && (
               <p className="settings-saved">Saved!</p>
