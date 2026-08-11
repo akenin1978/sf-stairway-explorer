@@ -934,6 +934,15 @@ html, body, #root {
   color: #c62828;
 }
 
+.verify-desktop-hint {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  background: #f5f4ff;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #4b3ce0;
+}
+
 .spotted-list-item-verified {
   display: inline-block;
   margin-left: 6px;

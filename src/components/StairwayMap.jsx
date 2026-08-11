@@ -43,6 +43,20 @@ function ratingKey(rating) {
   return rating == null ? 'unrated' : rating;
 }
 
+// Camera-only capture and reliable GPS both depend on being on a phone or
+// tablet, not a laptop/desktop. Modern iPads report their user agent as
+// "Macintosh" (Apple did this on purpose for web compatibility), so a
+// plain device-name check alone would wrongly treat an iPad as a desktop
+// -- checking for touch support alongside catches that case too.
+function isMobileOrTablet() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const isObviouslyMobile = /iPhone|iPad|iPod|Android/i.test(ua);
+  const isTouchDisguisedAsMac =
+    /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  return isObviouslyMobile || isTouchDisguisedAsMac;
+}
+
 // Purely cosmetic-but-necessary: gently centers the map on whichever
 // stairway is selected. Google's own InfoWindow auto-pan is supposed to
 // handle bringing a tapped/off-screen marker into view on its own, but in
@@ -642,17 +656,23 @@ export default function StairwayMap({
                         : 'Mark as spotted'}
                     </button>
 
-                    {checkedInMethods.get(selected.id) !== 'photo-verified' && (
-                      <button
-                        className="verify-photo-button"
-                        onClick={() => verifyFileInputRef.current?.click()}
-                        disabled={verifyStatus === 'verifying'}
-                      >
-                        {verifyStatus === 'verifying'
-                          ? 'Verifying…'
-                          : '📷 Verify with photo'}
-                      </button>
-                    )}
+                    {checkedInMethods.get(selected.id) !== 'photo-verified' &&
+                      (isMobileOrTablet() ? (
+                        <button
+                          className="verify-photo-button"
+                          onClick={() => verifyFileInputRef.current?.click()}
+                          disabled={verifyStatus === 'verifying'}
+                        >
+                          {verifyStatus === 'verifying'
+                            ? 'Verifying…'
+                            : '📷 Verify with photo'}
+                        </button>
+                      ) : (
+                        <p className="verify-desktop-hint">
+                          Photo verification works best on your phone --
+                          open this on mobile to verify with a photo.
+                        </p>
+                      ))}
 
                     <input
                       ref={verifyFileInputRef}
