@@ -669,8 +669,7 @@ export default function StairwayMap({
                         </button>
                       ) : (
                         <p className="verify-desktop-hint">
-                          Photo verification works best on your phone --
-                          open this on mobile to verify with a photo.
+                          Open this app on mobile to verify with a photo.
                         </p>
                       ))}
 
