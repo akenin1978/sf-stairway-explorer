@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import StairwayMap from './components/StairwayMap';
 import FeedbackModal from './components/FeedbackModal';
 import AuthModal from './components/AuthModal';
+import SettingsModal from './components/SettingsModal';
 import { useAuth } from './AuthContext';
 import { useCheckIns } from './CheckInsContext';
 import { supabase } from './supabaseClient';
@@ -10,6 +11,7 @@ export default function App() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackStairway, setFeedbackStairway] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [spotMode, setSpotMode] = useState(false);
   const [spottedListOpen, setSpottedListOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -67,6 +69,12 @@ export default function App() {
               user ? (
                 <div className="header-account">
                   <span className="header-account-email">{user.email}</span>
+                  <button
+                    className="header-settings-button"
+                    onClick={() => setSettingsOpen(true)}
+                  >
+                    Settings
+                  </button>
                   <button className="header-signout-button" onClick={signOut}>
                     Log out
                   </button>
@@ -98,6 +106,10 @@ export default function App() {
       )}
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
+
+      {settingsOpen && (
+        <SettingsModal onClose={() => setSettingsOpen(false)} />
+      )}
     </div>
   );
 }

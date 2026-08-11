@@ -10,22 +10,32 @@ import { useAuth } from './AuthContext';
 
 const CheckInsContext = createContext(null);
 
+const GPS_THRESHOLD_METERS = 100;
+
+function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export function CheckInsProvider({ children }) {
   const { user } = useAuth();
   const [checkedInIds, setCheckedInIds] = useState(new Set());
-  // Maps stairway_id -> ISO date string of when it was spotted. Kept
-  // alongside checkedInIds (rather than replacing it) so the many places
-  // that just need a fast "is this one checked?" lookup don't have to
-  // change.
   const [checkedInDates, setCheckedInDates] = useState(new Map());
+  const [checkedInMethods, setCheckedInMethods] = useState(new Map());
   const [loading, setLoading] = useState(false);
 
-  // Whenever the logged-in user changes (sign in, sign out, switch
-  // accounts), reload their check-in list from scratch.
   useEffect(() => {
     if (!user) {
       setCheckedInIds(new Set());
       setCheckedInDates(new Map());
+      setCheckedInMethods(new Map());
       return;
     }
 
@@ -34,7 +44,7 @@ export function CheckInsProvider({ children }) {
 
     supabase
       .from('check_ins')
-      .select('stairway_id, created_at')
+      .select('stairway_id, created_at, verification_method')
       .eq('user_id', user.id)
       .then(({ data, error }) => {
         if (!isMounted) return;
@@ -42,6 +52,14 @@ export function CheckInsProvider({ children }) {
           setCheckedInIds(new Set(data.map((row) => row.stairway_id)));
           setCheckedInDates(
             new Map(data.map((row) => [row.stairway_id, row.created_at]))
+          );
+          setCheckedInMethods(
+            new Map(
+              data.map((row) => [
+                row.stairway_id,
+                row.verification_method || 'self-reported',
+              ])
+            )
           );
         }
         setLoading(false);
@@ -52,9 +70,6 @@ export function CheckInsProvider({ children }) {
     };
   }, [user]);
 
-  // Adds or removes a single stairway from the user's checklist. Updates
-  // local state immediately (so the checkbox feels instant) and rolls back
-  // if the database call actually fails.
   const toggleCheckIn = useCallback(
     async (stairwayId) => {
       if (!user) return { error: 'not-signed-in' };
@@ -73,6 +88,11 @@ export function CheckInsProvider({ children }) {
           next.delete(stairwayId);
           return next;
         });
+        setCheckedInMethods((prev) => {
+          const next = new Map(prev);
+          next.delete(stairwayId);
+          return next;
+        });
 
         const { error } = await supabase
           .from('check_ins')
@@ -81,18 +101,16 @@ export function CheckInsProvider({ children }) {
           .eq('stairway_id', stairwayId);
 
         if (error) {
-          // Roll back -- we don't know the original created_at anymore,
-          // but re-fetching on next load will fix it; for now just mark
-          // it checked again so the UI isn't wrong about that.
           setCheckedInIds((prev) => new Set(prev).add(stairwayId));
           return { error };
         }
       } else {
-        // Optimistically use "now" until the real server timestamp comes
-        // back, so the list can sort correctly immediately.
         const optimisticDate = new Date().toISOString();
         setCheckedInDates((prev) =>
           new Map(prev).set(stairwayId, optimisticDate)
+        );
+        setCheckedInMethods((prev) =>
+          new Map(prev).set(stairwayId, 'self-reported')
         );
 
         const { data, error } = await supabase
@@ -112,6 +130,11 @@ export function CheckInsProvider({ children }) {
             next.delete(stairwayId);
             return next;
           });
+          setCheckedInMethods((prev) => {
+            const next = new Map(prev);
+            next.delete(stairwayId);
+            return next;
+          });
           return { error };
         }
 
@@ -127,12 +150,96 @@ export function CheckInsProvider({ children }) {
     [user, checkedInIds]
   );
 
+  const verifyWithPhoto = useCallback(
+    async (stairway, photoFile) => {
+      if (!user) return { error: 'not-signed-in' };
+
+      if (!navigator.geolocation) {
+        return { error: 'no-geolocation' };
+      }
+
+      const position = await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ pos }),
+          (err) => resolve({ err }),
+          { enableHighAccuracy: true, timeout: 15000 }
+        );
+      });
+
+      if (position.err || !position.pos) {
+        return { error: 'location-failed' };
+      }
+
+      const distance = haversineDistanceMeters(
+        position.pos.coords.latitude,
+        position.pos.coords.longitude,
+        stairway.latitude,
+        stairway.longitude
+      );
+
+      if (distance > GPS_THRESHOLD_METERS) {
+        return { error: 'too-far', distance: Math.round(distance) };
+      }
+
+      const filePath = `${user.id}/${stairway.id}-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('checkin-photos')
+        .upload(filePath, photoFile, {
+          contentType: photoFile.type || 'image/jpeg',
+        });
+
+      if (uploadError) {
+        return { error: 'upload-failed' };
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('checkin-photos')
+        .getPublicUrl(filePath);
+
+      const nowIso = new Date().toISOString();
+
+      const { error: upsertError } = await supabase.from('check_ins').upsert(
+        {
+          user_id: user.id,
+          stairway_id: stairway.id,
+          verification_method: 'photo-verified',
+          photo_url: urlData.publicUrl,
+          verified_at: nowIso,
+        },
+        { onConflict: 'user_id,stairway_id' }
+      );
+
+      if (upsertError) {
+        return { error: 'save-failed' };
+      }
+
+      setCheckedInIds((prev) => new Set(prev).add(stairway.id));
+      setCheckedInDates((prev) => {
+        if (prev.has(stairway.id)) return prev;
+        return new Map(prev).set(stairway.id, nowIso);
+      });
+      setCheckedInMethods((prev) =>
+        new Map(prev).set(stairway.id, 'photo-verified')
+      );
+
+      return { error: null };
+    },
+    [user]
+  );
+
+  const verifiedCount = [...checkedInMethods.values()].filter(
+    (m) => m === 'photo-verified'
+  ).length;
+
   const value = {
     checkedInIds,
     checkedInDates,
+    checkedInMethods,
     loading,
     toggleCheckIn,
+    verifyWithPhoto,
     count: checkedInIds.size,
+    verifiedCount,
   };
 
   return (

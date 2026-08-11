@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
@@ -157,7 +157,48 @@ export default function StairwayMap({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-  const { checkedInIds, checkedInDates, toggleCheckIn } = useCheckIns();
+  const { checkedInIds, checkedInDates, checkedInMethods, toggleCheckIn, verifyWithPhoto } =
+    useCheckIns();
+
+  // --- Photo verification state ---
+  const [verifyStatus, setVerifyStatus] = useState('idle'); // idle | verifying | error
+  const [verifyErrorMsg, setVerifyErrorMsg] = useState('');
+  const verifyFileInputRef = useRef(null);
+
+  useEffect(() => {
+    setVerifyStatus('idle');
+    setVerifyErrorMsg('');
+  }, [selected]);
+
+  async function handlePhotoSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !selected) return;
+
+    setVerifyStatus('verifying');
+    setVerifyErrorMsg('');
+
+    const { error, distance } = await verifyWithPhoto(selected, file);
+
+    if (error) {
+      setVerifyStatus('error');
+      if (error === 'too-far') {
+        setVerifyErrorMsg(
+          `You're about ${distance}m away -- get within 100m of the stairway to verify.`
+        );
+      } else if (error === 'location-failed') {
+        setVerifyErrorMsg(
+          "Couldn't get your location -- check that location access is allowed for this site."
+        );
+      } else if (error === 'no-geolocation') {
+        setVerifyErrorMsg('Location services are not available in this browser.');
+      } else {
+        setVerifyErrorMsg('Something went wrong saving your verification. Try again?');
+      }
+    } else {
+      setVerifyStatus('idle');
+    }
+  }
 
   // --- "My Spotted Stairways" list state ---
   const [spottedSearch, setSpottedSearch] = useState('');
@@ -510,6 +551,7 @@ export default function StairwayMap({
           {visibleStairways.map((s) => {
             const style = getRatingStyle(s.rating);
             const isChecked = checkedInIds.has(s.id);
+            const isVerified = checkedInMethods.get(s.id) === 'photo-verified';
             return (
               <Marker
                 key={s.id}
@@ -526,7 +568,9 @@ export default function StairwayMap({
                   scale: 8,
                 }}
                 label={
-                  isChecked
+                  isVerified
+                    ? { text: '★', color: '#ffffff', fontSize: '10px', fontWeight: 'bold' }
+                    : isChecked
                     ? { text: '✓', color: '#ffffff', fontSize: '10px', fontWeight: 'bold' }
                     : undefined
                 }
@@ -583,15 +627,46 @@ export default function StairwayMap({
                 ) : null}
 
                 {user ? (
-                  <button
-                    className={
-                      'checkin-toggle' +
-                      (checkedInIds.has(selected.id) ? ' checked' : '')
-                    }
-                    onClick={() => toggleCheckIn(selected.id)}
-                  >
-                    {checkedInIds.has(selected.id) ? '✓ Spotted' : 'Mark as spotted'}
-                  </button>
+                  <>
+                    <button
+                      className={
+                        'checkin-toggle' +
+                        (checkedInIds.has(selected.id) ? ' checked' : '')
+                      }
+                      onClick={() => toggleCheckIn(selected.id)}
+                    >
+                      {checkedInMethods.get(selected.id) === 'photo-verified'
+                        ? '✓ Verified'
+                        : checkedInIds.has(selected.id)
+                        ? '✓ Spotted'
+                        : 'Mark as spotted'}
+                    </button>
+
+                    {checkedInMethods.get(selected.id) !== 'photo-verified' && (
+                      <button
+                        className="verify-photo-button"
+                        onClick={() => verifyFileInputRef.current?.click()}
+                        disabled={verifyStatus === 'verifying'}
+                      >
+                        {verifyStatus === 'verifying'
+                          ? 'Verifying…'
+                          : '📷 Verify with photo'}
+                      </button>
+                    )}
+
+                    <input
+                      ref={verifyFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: 'none' }}
+                      onChange={handlePhotoSelected}
+                    />
+
+                    {verifyStatus === 'error' && (
+                      <p className="verify-error">{verifyErrorMsg}</p>
+                    )}
+                  </>
                 ) : (
                   <button
                     className="checkin-toggle signin-prompt"
@@ -792,6 +867,11 @@ export default function StairwayMap({
                   >
                     <span className="spotted-list-item-desc">
                       {s.description || 'Stairway'}
+                      {checkedInMethods.get(s.id) === 'photo-verified' && (
+                        <span className="spotted-list-item-verified">
+                          ★ Verified
+                        </span>
+                      )}
                     </span>
                     <span className="spotted-list-item-meta">
                       {s.neighborhood}
