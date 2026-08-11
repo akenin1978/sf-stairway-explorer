@@ -54,6 +54,12 @@ export default function SettingsModal({ onClose }) {
     // opted in) needs to pass these checks -- an empty/unused name is
     // always fine.
     if (leaderboardOptIn && trimmedName) {
+      if (trimmedName.length < 3) {
+        setStatus('error');
+        setErrorMsg('Display name needs to be at least 3 characters.');
+        return;
+      }
+
       if (profanityFilter.isProfane(trimmedName)) {
         setStatus('error');
         setErrorMsg(
@@ -160,6 +166,7 @@ export default function SettingsModal({ onClose }) {
                   placeholder="e.g. StairMaster_Ali"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
+                  minLength={3}
                   maxLength={40}
                 />
               </div>
