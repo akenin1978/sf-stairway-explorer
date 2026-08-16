@@ -327,6 +327,18 @@ html, body, #root {
   font-size: 15px;
 }
 
+.info-window-title {
+  margin: 0 0 2px 0;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.info-window-meta {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  color: #666;
+}
+
 .info-window p {
   margin: 4px 0;
   font-size: 13px;

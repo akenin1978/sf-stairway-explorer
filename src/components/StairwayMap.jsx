@@ -619,12 +619,14 @@ export default function StairwayMap({
                 >
                   ×
                 </button>
-                <h3>{selected.neighborhood || 'Stairway'}</h3>
+                <h3 className="info-window-title">{selected.description}</h3>
 
-                <p>{selected.description}</p>
-                {selected.rating != null && <p>Rating: {selected.rating}</p>}
-                {selected.stair_count != null && (
-                  <p>{selected.stair_count} stairs</p>
+                {(selected.rating != null || selected.stair_count != null) && (
+                  <p className="info-window-meta">
+                    {selected.rating != null && `Rating: ${selected.rating}`}
+                    {selected.rating != null && selected.stair_count != null && ', '}
+                    {selected.stair_count != null && `Steps: ${selected.stair_count}`}
+                  </p>
                 )}
                 {selected.direct_photo_url ? (
                   <img

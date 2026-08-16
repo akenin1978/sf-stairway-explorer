@@ -12,6 +12,7 @@ export default function App() {
   const [feedbackStairway, setFeedbackStairway] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [spotMode, setSpotMode] = useState(false);
   const [spottedListOpen, setSpottedListOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -52,38 +53,67 @@ export default function App() {
             </button>
           )}
 
-          <div className="header-button-group">
-            <button className="header-feedback-button" onClick={openGeneralFeedback}>
-              Feedback
-            </button>
+          <div className="header-menu-wrapper">
             <button
-              className="header-spot-button"
-              onClick={() => setSpotMode(true)}
+              className="header-menu-button"
+              onClick={() => setMenuOpen((open) => !open)}
             >
-              Spot a Stairway
+              Menu
             </button>
-          </div>
 
-          <div className="header-account-area">
-            {!loading && (
-              user ? (
-                <div className="header-account">
-                  <span className="header-account-email">{user.email}</span>
+            {menuOpen && (
+              <>
+                <div
+                  className="header-menu-backdrop"
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div className="header-menu-panel">
                   <button
-                    className="header-settings-button"
-                    onClick={() => setSettingsOpen(true)}
+                    className="header-menu-item"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openGeneralFeedback();
+                    }}
                   >
-                    Settings
+                    Feedback
                   </button>
-                  <button className="header-signout-button" onClick={signOut}>
-                    Log out
-                  </button>
+
+                  {!loading &&
+                    (user ? (
+                      <>
+                        <div className="header-menu-email">{user.email}</div>
+                        <button
+                          className="header-menu-item"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setSettingsOpen(true);
+                          }}
+                        >
+                          Settings
+                        </button>
+                        <button
+                          className="header-menu-item"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            signOut();
+                          }}
+                        >
+                          Log out
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="header-menu-item"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setAuthOpen(true);
+                        }}
+                      >
+                        Sign in
+                      </button>
+                    ))}
                 </div>
-              ) : (
-                <button className="header-signin-button" onClick={() => setAuthOpen(true)}>
-                  Sign in
-                </button>
-              )
+              </>
             )}
           </div>
         </div>
@@ -93,6 +123,7 @@ export default function App() {
         onReportIssue={openStairwayFeedback}
         onRequireSignIn={() => setAuthOpen(true)}
         spotMode={spotMode}
+        onStartSpot={() => setSpotMode(true)}
         onCancelSpot={() => setSpotMode(false)}
         spottedListOpen={spottedListOpen}
         onCloseSpottedList={() => setSpottedListOpen(false)}
