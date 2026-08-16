@@ -460,36 +460,14 @@ html, body, #root {
   gap: 10px;
 }
 
-.header-button-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.header-menu-wrapper {
+  position: relative;
 }
 
-.header-account-area {
-  margin-left: 18px;
-  display: flex;
-  align-items: center;
-}
-
-.header-spot-button {
+.header-menu-button {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.4);
   color: white;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.header-spot-button:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.header-signin-button {
-  background: white;
-  border: none;
-  color: #4b3ce0;
   border-radius: 6px;
   padding: 6px 14px;
   font-size: 13px;
@@ -497,36 +475,57 @@ html, body, #root {
   cursor: pointer;
 }
 
-.header-signin-button:hover {
-  background: #f0f0f0;
+.header-menu-button:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
-.header-account {
+.header-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.header-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 21;
+  background: white;
+  color: #222;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  min-width: 200px;
+  padding: 6px;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
 }
 
-.header-account-email {
-  font-size: 13px;
-  max-width: 160px;
+.header-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #222;
+}
+
+.header-menu-item:hover {
+  background: #f5f4ff;
+}
+
+.header-menu-email {
+  padding: 8px 12px 4px;
+  font-size: 12px;
+  color: #777;
+  border-top: 1px solid #eee;
+  margin-top: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.header-settings-button {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: white;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.header-settings-button:hover {
-  background: rgba(255, 255, 255, 0.25);
 }
 
 /* --- Settings modal --- */
@@ -619,20 +618,6 @@ html, body, #root {
   color: #2e7d32;
   font-size: 13px;
   margin: 0 0 8px;
-}
-
-.header-signout-button {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: white;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.header-signout-button:hover {
-  background: rgba(255, 255, 255, 0.25);
 }
 
 /* --- Auth modal (sign in / sign up) --- */
@@ -901,18 +886,18 @@ html, body, #root {
 
   .app-header h1 {
     font-size: 16px;
-    width: 100%;
+    /* No forced width here on purpose -- letting the title size to its
+       own content (rather than always claiming the full row) is what
+       lets it, the spotted-count button, and the Menu button all share
+       one line whenever there's room. flex-wrap on .app-header above
+       still lets the actions drop to their own row if the spotted-count
+       text grows long enough that everything stops fitting. */
   }
 
   .header-actions {
-    width: 100%;
     flex-wrap: wrap;
-    margin-left: 0;
+    margin-left: auto;
     gap: 6px;
-  }
-
-  .header-account-area {
-    margin-left: 0;
   }
 }
 
