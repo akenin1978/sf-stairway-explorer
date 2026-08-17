@@ -9,6 +9,13 @@ export default function SettingsModal({ onClose }) {
   const { user } = useAuth();
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  // What's actually saved right now, so we can tell (a) whether there are
+  // unsaved changes worth warning about on close, and (b) fall back to the
+  // last-known-good display name if someone edits it into something
+  // invalid -- an invalid name shouldn't be able to block saving the
+  // leaderboard toggle, since those are two unrelated things.
+  const [savedLeaderboardOptIn, setSavedLeaderboardOptIn] = useState(false);
+  const [savedDisplayName, setSavedDisplayName] = useState('');
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('idle'); // idle | saving | saved | error
   const [errorMsg, setErrorMsg] = useState('');
@@ -32,6 +39,8 @@ export default function SettingsModal({ onClose }) {
         if (!error && data) {
           setLeaderboardOptIn(data.leaderboard_opt_in);
           setDisplayName(data.display_name || '');
+          setSavedLeaderboardOptIn(data.leaderboard_opt_in);
+          setSavedDisplayName(data.display_name || '');
         }
         setLoading(false);
       });
@@ -41,6 +50,21 @@ export default function SettingsModal({ onClose }) {
     };
   }, [user]);
 
+  const hasUnsavedChanges =
+    !loading &&
+    (leaderboardOptIn !== savedLeaderboardOptIn ||
+      displayName.trim() !== savedDisplayName);
+
+  function handleCloseAttempt() {
+    if (
+      hasUnsavedChanges &&
+      !window.confirm('You have unsaved changes. Discard them?')
+    ) {
+      return;
+    }
+    onClose();
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     if (!user) return;
@@ -49,49 +73,43 @@ export default function SettingsModal({ onClose }) {
     setErrorMsg('');
 
     const trimmedName = displayName.trim();
+    const nameChanged = trimmedName !== savedDisplayName;
 
-    // Only a display name that's actually going to be shown (leaderboard
-    // opted in) needs to pass these checks -- an empty/unused name is
-    // always fine.
-    if (leaderboardOptIn && trimmedName) {
+    // A name only needs to pass these checks if it's actually going to be
+    // shown (leaderboard on) AND it's actually being changed -- no reason
+    // to re-validate a name that's already saved and untouched.
+    let nameError = null;
+    if (leaderboardOptIn && trimmedName && nameChanged) {
       if (trimmedName.length < 3) {
-        setStatus('error');
-        setErrorMsg('Display name needs to be at least 3 characters.');
-        return;
-      }
+        nameError = 'Display name needs to be at least 3 characters.';
+      } else if (profanityFilter.isProfane(trimmedName)) {
+        nameError = "That display name isn't allowed. Please choose something else.";
+      } else {
+        // Case-insensitive check against everyone else's display name.
+        // The database also enforces this for real (two people can't end
+        // up with the same name even if they both hit save at the same
+        // moment) -- this is just for instant, friendly feedback before
+        // that.
+        const { data: existing, error: lookupError } = await supabase
+          .from('user_settings')
+          .select('user_id')
+          .ilike('display_name', trimmedName)
+          .neq('user_id', user.id)
+          .maybeSingle();
 
-      if (profanityFilter.isProfane(trimmedName)) {
-        setStatus('error');
-        setErrorMsg(
-          'That display name isn\'t allowed. Please choose something else.'
-        );
-        return;
-      }
-
-      // Case-insensitive check against everyone else's display name. The
-      // database also enforces this for real (two people can't end up
-      // with the same name even if they both hit save at the same
-      // moment) -- this is just for instant, friendly feedback before
-      // that.
-      const { data: existing, error: lookupError } = await supabase
-        .from('user_settings')
-        .select('user_id')
-        .ilike('display_name', trimmedName)
-        .neq('user_id', user.id)
-        .maybeSingle();
-
-      if (lookupError) {
-        setStatus('error');
-        setErrorMsg(lookupError.message);
-        return;
-      }
-
-      if (existing) {
-        setStatus('error');
-        setErrorMsg('That display name is already taken. Try another.');
-        return;
+        if (lookupError) {
+          nameError = lookupError.message;
+        } else if (existing) {
+          nameError = 'That display name is already taken. Try another.';
+        }
       }
     }
+
+    // If the name is invalid, don't let that block the leaderboard
+    // toggle -- save the toggle with whatever name was already saved
+    // before, and tell the person clearly that only the name part didn't
+    // go through.
+    const nameToSave = nameError ? savedDisplayName : trimmedName;
 
     const { error } = await supabase.from('user_settings').upsert(
       {
@@ -99,7 +117,7 @@ export default function SettingsModal({ onClose }) {
         leaderboard_opt_in: leaderboardOptIn,
         // Store an empty display name as null, not an empty string, so
         // it's unambiguous that nothing was set.
-        display_name: trimmedName || null,
+        display_name: nameToSave || null,
       },
       { onConflict: 'user_id' }
     );
@@ -114,15 +132,33 @@ export default function SettingsModal({ onClose }) {
       } else {
         setErrorMsg(error.message);
       }
+      return;
+    }
+
+    setSavedLeaderboardOptIn(leaderboardOptIn);
+    setSavedDisplayName(nameToSave);
+
+    if (nameError) {
+      setStatus('error');
+      setErrorMsg(
+        `Your leaderboard setting was saved, but your display name wasn't: ${nameError}`
+      );
+      // Revert the input back to the last-good name so the field isn't
+      // left showing an unsaved, invalid value.
+      setDisplayName(nameToSave);
     } else {
       setStatus('saved');
     }
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={handleCloseAttempt}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Close">
+        <button
+          className="modal-close"
+          onClick={handleCloseAttempt}
+          aria-label="Close"
+        >
           ×
         </button>
 
