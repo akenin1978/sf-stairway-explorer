@@ -649,7 +649,26 @@ export default function StairwayMap({
                         'checkin-toggle' +
                         (checkedInIds.has(selected.id) ? ' checked' : '')
                       }
-                      onClick={() => toggleCheckIn(selected.id)}
+                      onClick={() => {
+                        // A plain self-reported check-in un-toggles freely --
+                        // that's cheap to redo. But un-checking a
+                        // photo-verified one deletes the whole check-in row,
+                        // photo reference included, with no way back through
+                        // the app. One confirmation catches an accidental
+                        // second tap without slowing down anyone who
+                        // genuinely wants to undo a real mistake.
+                        const isVerified =
+                          checkedInMethods.get(selected.id) === 'photo-verified';
+                        if (
+                          isVerified &&
+                          !window.confirm(
+                            'This will remove your photo verification for this stairway too -- there\'s no way to undo it. Continue?'
+                          )
+                        ) {
+                          return;
+                        }
+                        toggleCheckIn(selected.id);
+                      }}
                     >
                       {checkedInMethods.get(selected.id) === 'photo-verified'
                         ? '✓ Verified'
