@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Filter } from 'bad-words';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
+import { useCheckIns, storagePathFromPublicUrl } from '../CheckInsContext';
 
 const profanityFilter = new Filter();
 
 export default function SettingsModal({ onClose }) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const { checkedInPhotoUrls } = useCheckIns();
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
   const [displayName, setDisplayName] = useState('');
   // What's actually saved right now, so we can tell (a) whether there are
@@ -19,6 +21,7 @@ export default function SettingsModal({ onClose }) {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('idle'); // idle | saving | saved | error
   const [errorMsg, setErrorMsg] = useState('');
+  const [deleteStatus, setDeleteStatus] = useState('idle'); // idle | deleting | error
 
   // Load the user's current settings when the modal opens. If they've
   // never saved settings before, there's simply no row yet -- that's
@@ -151,6 +154,39 @@ export default function SettingsModal({ onClose }) {
     }
   }
 
+  async function handleDeleteAccount() {
+    if (!user) return;
+
+    const confirmed = window.confirm(
+      'Delete your account? This permanently removes your account, every ' +
+      'stairway you\'ve checked off, all your photo verifications, and any ' +
+      'badges or leaderboard standing tied to it. This cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    setDeleteStatus('deleting');
+
+    // Clean up photo files first -- once the account row is gone, we'd
+    // have no record of which files were even ours to remove.
+    const paths = [...checkedInPhotoUrls.values()]
+      .map(storagePathFromPublicUrl)
+      .filter(Boolean);
+    if (paths.length > 0) {
+      await supabase.storage.from('checkin-photos').remove(paths).catch(() => {});
+    }
+
+    const { error } = await supabase.rpc('delete_my_account');
+
+    if (error) {
+      setDeleteStatus('error');
+      setErrorMsg(`Couldn't delete your account: ${error.message}`);
+      return;
+    }
+
+    await signOut();
+    onClose();
+  }
+
   return (
     <div className="modal-backdrop" onClick={handleCloseAttempt}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
@@ -218,6 +254,22 @@ export default function SettingsModal({ onClose }) {
             <button type="submit" disabled={status === 'saving'}>
               {status === 'saving' ? 'Saving…' : 'Save'}
             </button>
+
+            <div className="settings-danger-zone">
+              {deleteStatus === 'error' && (
+                <p className="modal-error">{errorMsg}</p>
+              )}
+              <button
+                type="button"
+                className="settings-delete-account"
+                onClick={handleDeleteAccount}
+                disabled={deleteStatus === 'deleting'}
+              >
+                {deleteStatus === 'deleting'
+                  ? 'Deleting…'
+                  : 'Delete my account'}
+              </button>
+            </div>
           </form>
         )}
       </div>
