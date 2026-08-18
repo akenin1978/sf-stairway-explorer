@@ -24,11 +24,25 @@ function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
+// Pulls the storage path back out of a public Supabase Storage URL, so a
+// deleted check-in can also clean up the actual photo file instead of
+// leaving it orphaned in storage forever. Returns null if the URL doesn't
+// match the expected shape rather than guessing. Exported so account
+// deletion can reuse the same logic for every photo at once.
+export function storagePathFromPublicUrl(publicUrl) {
+  if (!publicUrl) return null;
+  const marker = '/checkin-photos/';
+  const idx = publicUrl.indexOf(marker);
+  if (idx === -1) return null;
+  return publicUrl.slice(idx + marker.length);
+}
+
 export function CheckInsProvider({ children }) {
   const { user } = useAuth();
   const [checkedInIds, setCheckedInIds] = useState(new Set());
   const [checkedInDates, setCheckedInDates] = useState(new Map());
   const [checkedInMethods, setCheckedInMethods] = useState(new Map());
+  const [checkedInPhotoUrls, setCheckedInPhotoUrls] = useState(new Map());
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -36,6 +50,7 @@ export function CheckInsProvider({ children }) {
       setCheckedInIds(new Set());
       setCheckedInDates(new Map());
       setCheckedInMethods(new Map());
+      setCheckedInPhotoUrls(new Map());
       return;
     }
 
@@ -44,7 +59,7 @@ export function CheckInsProvider({ children }) {
 
     supabase
       .from('check_ins')
-      .select('stairway_id, created_at, verification_method')
+      .select('stairway_id, created_at, verification_method, photo_url')
       .eq('user_id', user.id)
       .then(({ data, error }) => {
         if (!isMounted) return;
@@ -59,6 +74,13 @@ export function CheckInsProvider({ children }) {
                 row.stairway_id,
                 row.verification_method || 'self-reported',
               ])
+            )
+          );
+          setCheckedInPhotoUrls(
+            new Map(
+              data
+                .filter((row) => row.photo_url)
+                .map((row) => [row.stairway_id, row.photo_url])
             )
           );
         }
@@ -83,12 +105,22 @@ export function CheckInsProvider({ children }) {
       });
 
       if (wasChecked) {
+        // Grab this before clearing local state below, since we need it
+        // to clean up the actual photo file in storage -- otherwise a
+        // removed check-in leaves an orphaned file behind forever.
+        const photoUrlToClean = checkedInPhotoUrls.get(stairwayId);
+
         setCheckedInDates((prev) => {
           const next = new Map(prev);
           next.delete(stairwayId);
           return next;
         });
         setCheckedInMethods((prev) => {
+          const next = new Map(prev);
+          next.delete(stairwayId);
+          return next;
+        });
+        setCheckedInPhotoUrls((prev) => {
           const next = new Map(prev);
           next.delete(stairwayId);
           return next;
@@ -103,6 +135,17 @@ export function CheckInsProvider({ children }) {
         if (error) {
           setCheckedInIds((prev) => new Set(prev).add(stairwayId));
           return { error };
+        }
+
+        // Best-effort cleanup -- if this fails, the check-in itself is
+        // still correctly deleted, it just leaves one unused file behind.
+        // Not worth failing the whole un-check over.
+        const storagePath = storagePathFromPublicUrl(photoUrlToClean);
+        if (storagePath) {
+          supabase.storage
+            .from('checkin-photos')
+            .remove([storagePath])
+            .catch(() => {});
         }
       } else {
         const optimisticDate = new Date().toISOString();
@@ -147,7 +190,7 @@ export function CheckInsProvider({ children }) {
 
       return { error: null };
     },
-    [user, checkedInIds]
+    [user, checkedInIds, checkedInPhotoUrls]
   );
 
   const verifyWithPhoto = useCallback(
@@ -221,6 +264,9 @@ export function CheckInsProvider({ children }) {
       setCheckedInMethods((prev) =>
         new Map(prev).set(stairway.id, 'photo-verified')
       );
+      setCheckedInPhotoUrls((prev) =>
+        new Map(prev).set(stairway.id, urlData.publicUrl)
+      );
 
       return { error: null };
     },
@@ -235,6 +281,7 @@ export function CheckInsProvider({ children }) {
     checkedInIds,
     checkedInDates,
     checkedInMethods,
+    checkedInPhotoUrls,
     loading,
     toggleCheckIn,
     verifyWithPhoto,
