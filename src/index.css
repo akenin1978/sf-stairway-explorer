@@ -30,6 +30,13 @@ html, body, #root {
 .app-header h1 {
   margin: 0;
   font-size: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.app-header-icon {
+  flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .header-feedback-button {
@@ -448,20 +455,18 @@ html, body, #root {
 }
 
 /* --- Header layout ---
-   The whole actions area is pushed to the right of the header. Within it,
-   two clusters: the feature buttons (Feedback, Spot a Stairway) grouped
-   close together, then a clear gap before the account area (Sign in /
-   email + Log out), so account controls read as a distinct, separate
-   group on the far right rather than crowding the feature buttons. */
-.header-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+   The title (with its icon) and the Menu button are always kept
+   together on one row -- the icon/title sit at the left, Menu is
+   pushed to the far right via margin-left: auto on its own wrapper.
+   The spotted-count button is a separate element after that row; on
+   desktop there's enough width for it to just sit inline too, but on
+   mobile (see the media query below) it's deliberately forced onto its
+   own row underneath, left-aligned with the title -- not just left to
+   wrap wherever there happens to be room. */
 
 .header-menu-wrapper {
   position: relative;
+  margin-left: auto;
 }
 
 .header-menu-button {
@@ -911,18 +916,17 @@ html, body, #root {
 
   .app-header h1 {
     font-size: 16px;
-    /* No forced width here on purpose -- letting the title size to its
-       own content (rather than always claiming the full row) is what
-       lets it, the spotted-count button, and the Menu button all share
-       one line whenever there's room. flex-wrap on .app-header above
-       still lets the actions drop to their own row if the spotted-count
-       text grows long enough that everything stops fitting. */
   }
 
-  .header-actions {
-    flex-wrap: wrap;
-    margin-left: auto;
-    gap: 6px;
+  /* Forces the spotted-count button onto its own row underneath the
+     title, regardless of how long the text gets as verified counts grow
+     -- flex-basis: 100% makes a wrapping flex item always claim a full
+     new row of its own rather than only wrapping when it happens not to
+     fit. The title and Menu button stay together above it since
+     they're short enough to always fit on one row together. */
+  .header-progress {
+    flex-basis: 100%;
+    order: 3;
   }
 }
 
