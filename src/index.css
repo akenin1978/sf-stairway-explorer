@@ -620,6 +620,31 @@ html, body, #root {
   margin: 0 0 8px;
 }
 
+.settings-danger-zone {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid #eee;
+}
+
+.settings-delete-account {
+  background: none;
+  border: 1px solid #c62828;
+  color: #c62828;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-delete-account:hover {
+  background: #fdecea;
+}
+
+.settings-delete-account:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* --- Auth modal (sign in / sign up) --- */
 .google-signin-button {
   width: 100%;
