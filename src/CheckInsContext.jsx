@@ -10,7 +10,12 @@ import { useAuth } from './AuthContext';
 
 const CheckInsContext = createContext(null);
 
-const GPS_THRESHOLD_METERS = 100;
+// Defined in feet since that's the unit used everywhere else in this app
+// (US audience, and how override radii for long stairways get measured
+// and calibrated) -- meters is just what the distance math needs
+// internally.
+const GPS_THRESHOLD_FEET = 250;
+const GPS_THRESHOLD_METERS = GPS_THRESHOLD_FEET * 0.3048;
 
 function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -221,7 +226,10 @@ export function CheckInsProvider({ children }) {
       );
 
       if (distance > GPS_THRESHOLD_METERS) {
-        return { error: 'too-far', distance: Math.round(distance) };
+        return {
+          error: 'too-far',
+          distance: Math.round(distance / 0.3048), // meters -> feet
+        };
       }
 
       const filePath = `${user.id}/${stairway.id}-${Date.now()}.jpg`;
