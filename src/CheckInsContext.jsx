@@ -14,7 +14,7 @@ const CheckInsContext = createContext(null);
 // (US audience, and how override radii for long stairways get measured
 // and calibrated) -- meters is just what the distance math needs
 // internally.
-const GPS_THRESHOLD_FEET = 250;
+const GPS_THRESHOLD_FEET = 300;
 const GPS_THRESHOLD_METERS = GPS_THRESHOLD_FEET * 0.3048;
 
 function haversineDistanceMeters(lat1, lng1, lat2, lng2) {

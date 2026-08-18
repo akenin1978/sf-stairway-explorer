@@ -201,7 +201,7 @@ export default function StairwayMap({
       setVerifyStatus('error');
       if (error === 'too-far') {
         setVerifyErrorMsg(
-          `You're about ${distance}ft away -- get within 250ft of the stairway to verify.`
+          `You're about ${distance}ft away -- get within 300ft of the stairway to verify.`
         );
       } else if (error === 'location-failed') {
         setVerifyErrorMsg(
