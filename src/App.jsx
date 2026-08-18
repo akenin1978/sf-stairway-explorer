@@ -41,82 +41,96 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>SF Stairway Spotter</h1>
-        <div className="header-actions">
-          {user && (
-            <button
-              className="header-progress"
-              onClick={() => setSpottedListOpen(true)}
-            >
-              {checkedInCount} / {totalStairways ?? '…'} spotted
-              {verifiedCount > 0 ? ` (${verifiedCount} verified)` : ''}
-            </button>
-          )}
+        <h1>
+          <svg
+            className="app-header-icon"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <rect x="1" y="17" width="5" height="6" fill="#ffffff" />
+            <rect x="7" y="12" width="5" height="11" fill="#ffffff" />
+            <rect x="13" y="7" width="5" height="16" fill="#ffffff" />
+            <rect x="19" y="2" width="4" height="21" fill="#ffffff" />
+          </svg>
+          SF Stairway Spotter
+        </h1>
 
-          <div className="header-menu-wrapper">
-            <button
-              className="header-menu-button"
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              Menu
-            </button>
+        <div className="header-menu-wrapper">
+          <button
+            className="header-menu-button"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            Menu
+          </button>
 
-            {menuOpen && (
-              <>
-                <div
-                  className="header-menu-backdrop"
-                  onClick={() => setMenuOpen(false)}
-                />
-                <div className="header-menu-panel">
-                  <button
-                    className="header-menu-item"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      openGeneralFeedback();
-                    }}
-                  >
-                    Feedback
-                  </button>
+          {menuOpen && (
+            <>
+              <div
+                className="header-menu-backdrop"
+                onClick={() => setMenuOpen(false)}
+              />
+              <div className="header-menu-panel">
+                <button
+                  className="header-menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openGeneralFeedback();
+                  }}
+                >
+                  Feedback
+                </button>
 
-                  {!loading &&
-                    (user ? (
-                      <>
-                        <div className="header-menu-email">{user.email}</div>
-                        <button
-                          className="header-menu-item"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            setSettingsOpen(true);
-                          }}
-                        >
-                          Settings
-                        </button>
-                        <button
-                          className="header-menu-item"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            signOut();
-                          }}
-                        >
-                          Log out
-                        </button>
-                      </>
-                    ) : (
+                {!loading &&
+                  (user ? (
+                    <>
+                      <div className="header-menu-email">{user.email}</div>
                       <button
                         className="header-menu-item"
                         onClick={() => {
                           setMenuOpen(false);
-                          setAuthOpen(true);
+                          setSettingsOpen(true);
                         }}
                       >
-                        Sign in
+                        Settings
                       </button>
-                    ))}
-                </div>
-              </>
-            )}
-          </div>
+                      <button
+                        className="header-menu-item"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          signOut();
+                        }}
+                      >
+                        Log out
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="header-menu-item"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setAuthOpen(true);
+                      }}
+                    >
+                      Sign in
+                    </button>
+                  ))}
+              </div>
+            </>
+          )}
         </div>
+
+        {user && (
+          <button
+            className="header-progress"
+            onClick={() => setSpottedListOpen(true)}
+          >
+            {checkedInCount} / {totalStairways ?? '…'} spotted
+            {verifiedCount > 0 ? ` (${verifiedCount} verified)` : ''}
+          </button>
+        )}
       </header>
 
       <StairwayMap
