@@ -72,16 +72,19 @@ function MapRecenter({ target }) {
     if (!map || !target) return;
     map.panTo({ lat: target.latitude, lng: target.longitude });
     // Dead-centering the marker only leaves half the screen's height
-    // above it -- often not enough room for a tall card (long
-    // description + full photo). Shifting the marker further down the
-    // screen leaves much more headroom above it for the card to actually
-    // fit. This is a fixed, deterministic offset (not a measurement of
-    // the actual card), so it can't reintroduce the fragility of the
-    // pixel-measuring approach we removed earlier -- it's a reasonable
-    // one-size-fits-most adjustment, backed up by the card's own
-    // internal scroll (see .info-window CSS) for the rare card that's
-    // still too tall even with this extra room.
-    map.panBy(0, -140);
+    // above it -- often not enough room for a tall card (title +
+    // description + rating/steps line + full photo + two action
+    // buttons). Shifting the marker further down the screen leaves much
+    // more headroom above it for the card to actually fit. This is a
+    // fixed, deterministic offset (not a measurement of the actual
+    // card), so it can't reintroduce the fragility of the pixel-
+    // measuring approach we removed earlier. Bumped from -140 to -230
+    // after a real card (photo + meta line + Mark as spotted + Verify
+    // with photo) still had its title clipped above the screen at the
+    // smaller offset -- backed up by the card's own internal scroll
+    // (see .info-window CSS) for the rare card still too tall even with
+    // this much room.
+    map.panBy(0, -230);
   }, [map, target]);
 
   return null;
