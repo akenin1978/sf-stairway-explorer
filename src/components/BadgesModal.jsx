@@ -167,7 +167,7 @@ export default function BadgesModal({ onClose }) {
               })}
             </div>
 
-            <h3 className="badges-section-heading">Special</h3>
+            <h3 className="badges-section-heading">Other</h3>
             <div className="badges-grid">
               {SPECIAL_BADGES.map((badge) => (
                 <BadgeMedallion
