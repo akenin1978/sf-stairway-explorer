@@ -3,6 +3,7 @@ import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-goog
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 import { useCheckIns } from '../CheckInsContext';
+import { useBadges } from '../BadgesContext';
 import MapControlsPanel from './MapControlsPanel';
 import { getRatingStyle } from '../ratingColors';
 
@@ -176,6 +177,7 @@ export default function StairwayMap({
   const { user } = useAuth();
   const { checkedInIds, checkedInDates, checkedInMethods, toggleCheckIn, verifyWithPhoto } =
     useCheckIns();
+  const { checkAndAwardBadges } = useBadges();
 
   // --- Photo verification state ---
   const [verifyStatus, setVerifyStatus] = useState('idle'); // idle | verifying | error
@@ -220,6 +222,8 @@ export default function StairwayMap({
       }
     } else {
       setVerifyStatus('idle');
+      const updatedIds = new Set(checkedInIds).add(selected.id);
+      checkAndAwardBadges(stairways, updatedIds, selected.id);
     }
   }
 
@@ -658,7 +662,7 @@ export default function StairwayMap({
                         'checkin-toggle' +
                         (checkedInIds.has(selected.id) ? ' checked' : '')
                       }
-                      onClick={() => {
+                      onClick={async () => {
                         // A plain self-reported check-in un-toggles freely --
                         // that's cheap to redo. But un-checking a
                         // photo-verified one deletes the whole check-in row,
@@ -676,7 +680,22 @@ export default function StairwayMap({
                         ) {
                           return;
                         }
-                        toggleCheckIn(selected.id);
+
+                        const wasAdding = !checkedInIds.has(selected.id);
+                        const result = await toggleCheckIn(selected.id);
+
+                        // Only check for newly-earned badges when adding a
+                        // check-in, never on removal (badges are never
+                        // un-awarded). Built manually rather than reading
+                        // checkedInIds again here, since React state
+                        // updates aren't guaranteed to have landed yet by
+                        // this point in the same function.
+                        if (wasAdding && !result.error) {
+                          const updatedIds = new Set(checkedInIds).add(
+                            selected.id
+                          );
+                          checkAndAwardBadges(stairways, updatedIds, selected.id);
+                        }
                       }}
                     >
                       {checkedInMethods.get(selected.id) === 'photo-verified'
