@@ -98,6 +98,80 @@ html, body, #root {
   color: #666;
 }
 
+/* --- Badges --- */
+.badges-modal-card {
+  max-width: 640px;
+  max-height: 85dvh;
+  overflow-y: auto;
+}
+
+.badges-section-heading {
+  font-size: 15px;
+  margin: 20px 0 10px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.badges-section-heading:first-of-type {
+  margin-top: 12px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.badges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 12px;
+}
+
+.badge-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+
+.badge-tile-medallion-wrap {
+  position: relative;
+}
+
+.badge-tile-notification {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #d32f2f;
+  color: white;
+  border-radius: 999px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+}
+
+.badge-tile-name {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.badge-tile-subtitle {
+  font-size: 10px;
+  color: #888;
+  line-height: 1.2;
+}
+
+.badge-tile-progress {
+  font-size: 10px;
+  color: #4b3ce0;
+  font-weight: 600;
+}
+
 .modal-card h2 {
   margin: 0 0 8px;
   font-size: 17px;
