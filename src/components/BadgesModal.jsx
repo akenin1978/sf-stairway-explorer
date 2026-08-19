@@ -72,6 +72,13 @@ export default function BadgesModal({ onClose }) {
         const { data, error } = await supabase
           .from('stairways')
           .select('id, neighborhood, rating')
+          // Same filter the map itself uses -- a stairway with no
+          // coordinates yet can't be shown or checked in on, so it
+          // shouldn't count toward "total" here either. Without this,
+          // this screen's totals (including the "SF Stairway Legend"
+          // milestone) could disagree with what the map shows.
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
           .order('id', { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
         if (error || !data || data.length === 0) break;
