@@ -200,8 +200,14 @@ export default function StairwayMap({
     if (error) {
       setVerifyStatus('error');
       if (error === 'too-far') {
+        const applicableThreshold = selected.verification_radius_feet ?? 300;
+        const isLine =
+          selected.verification_line_start_lat != null &&
+          selected.verification_line_end_lat != null;
         setVerifyErrorMsg(
-          `You're about ${distance}ft away -- get within 300ft of the stairway to verify.`
+          isLine
+            ? `You're about ${distance}ft from the nearest point along this stretch -- get within ${applicableThreshold}ft to verify.`
+            : `You're about ${distance}ft away -- get within ${applicableThreshold}ft of the stairway to verify.`
         );
       } else if (error === 'location-failed') {
         setVerifyErrorMsg(

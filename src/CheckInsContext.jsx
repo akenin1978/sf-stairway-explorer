@@ -17,6 +17,41 @@ const CheckInsContext = createContext(null);
 const GPS_THRESHOLD_FEET = 300;
 const GPS_THRESHOLD_METERS = GPS_THRESHOLD_FEET * 0.3048;
 
+// How far someone's GPS position is from the *nearest point* along a
+// straight line (not just from one center point) -- a much better fit
+// for a stairway that runs the length of a street, rather than sitting
+// in one compact spot. Uses a simple flat-earth approximation, which is
+// accurate to well under a meter of error at the distances involved
+// here (a few hundred to a couple thousand feet) -- no need for full
+// spherical geometry at this scale.
+function pointToSegmentDistanceMeters(point, segStart, segEnd) {
+  const refLat = segStart.lat;
+  const metersPerDegLat = 111320;
+  const metersPerDegLng = 111320 * Math.cos((refLat * Math.PI) / 180);
+
+  const toLocalXY = (lat, lng) => ({
+    x: lng * metersPerDegLng,
+    y: lat * metersPerDegLat,
+  });
+
+  const p = toLocalXY(point.lat, point.lng);
+  const a = toLocalXY(segStart.lat, segStart.lng);
+  const b = toLocalXY(segEnd.lat, segEnd.lng);
+
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lengthSq = dx * dx + dy * dy;
+
+  let t = lengthSq === 0 ? 0 : ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq;
+  t = Math.max(0, Math.min(1, t)); // clamp to the segment itself, not the infinite line
+
+  const closestX = a.x + t * dx;
+  const closestY = a.y + t * dy;
+  const ddx = p.x - closestX;
+  const ddy = p.y - closestY;
+  return Math.sqrt(ddx * ddx + ddy * ddy);
+}
+
 function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -218,17 +253,55 @@ export function CheckInsProvider({ children }) {
         return { error: 'location-failed' };
       }
 
-      const distance = haversineDistanceMeters(
-        position.pos.coords.latitude,
-        position.pos.coords.longitude,
-        stairway.latitude,
-        stairway.longitude
-      );
+      const hasLine =
+        stairway.verification_line_start_lat != null &&
+        stairway.verification_line_start_lng != null &&
+        stairway.verification_line_end_lat != null &&
+        stairway.verification_line_end_lng != null;
 
-      if (distance > GPS_THRESHOLD_METERS) {
+      // Three ways a stairway can be checked, in order of precedence:
+      //  1. A line (street/trail with a real start and end) -- distance
+      //     is measured to the nearest point anywhere along that line,
+      //     not just to one center point. Best fit for anything that
+      //     runs the length of a street.
+      //  2. A plain radius override -- same idea as the default, just a
+      //     bigger circle, for a stairway that's roughly one spot but
+      //     longer/taller than most.
+      //  3. The app-wide default circle, for everything else.
+      const distanceMeters = hasLine
+        ? pointToSegmentDistanceMeters(
+            {
+              lat: position.pos.coords.latitude,
+              lng: position.pos.coords.longitude,
+            },
+            {
+              lat: stairway.verification_line_start_lat,
+              lng: stairway.verification_line_start_lng,
+            },
+            {
+              lat: stairway.verification_line_end_lat,
+              lng: stairway.verification_line_end_lng,
+            }
+          )
+        : haversineDistanceMeters(
+            position.pos.coords.latitude,
+            position.pos.coords.longitude,
+            stairway.latitude,
+            stairway.longitude
+          );
+
+      // For a line, this is the tolerance to either side of it, not a
+      // "how far from the center" radius -- reuses the same column for
+      // simplicity rather than adding a whole separate field for it.
+      const thresholdMeters =
+        stairway.verification_radius_feet != null
+          ? stairway.verification_radius_feet * 0.3048
+          : GPS_THRESHOLD_METERS;
+
+      if (distanceMeters > thresholdMeters) {
         return {
           error: 'too-far',
-          distance: Math.round(distance / 0.3048), // meters -> feet
+          distance: Math.round(distanceMeters / 0.3048), // meters -> feet
         };
       }
 
