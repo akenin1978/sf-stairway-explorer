@@ -5,6 +5,7 @@ import AuthModal from './components/AuthModal';
 import SettingsModal from './components/SettingsModal';
 import BadgesModal from './components/BadgesModal';
 import LeaderboardModal from './components/LeaderboardModal';
+import FriendsModal from './components/FriendsModal';
 import { useAuth } from './AuthContext';
 import { useCheckIns } from './CheckInsContext';
 import { supabase } from './supabaseClient';
@@ -16,6 +17,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [badgesOpen, setBadgesOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [friendsOpen, setFriendsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [spotMode, setSpotMode] = useState(false);
   const [spottedListOpen, setSpottedListOpen] = useState(false);
@@ -113,6 +115,15 @@ export default function App() {
                         className="header-menu-item"
                         onClick={() => {
                           setMenuOpen(false);
+                          setFriendsOpen(true);
+                        }}
+                      >
+                        Friends
+                      </button>
+                      <button
+                        className="header-menu-item"
+                        onClick={() => {
+                          setMenuOpen(false);
                           setSettingsOpen(true);
                         }}
                       >
@@ -183,6 +194,8 @@ export default function App() {
       {leaderboardOpen && (
         <LeaderboardModal onClose={() => setLeaderboardOpen(false)} />
       )}
+
+      {friendsOpen && <FriendsModal onClose={() => setFriendsOpen(false)} />}
     </div>
   );
 }
