@@ -23,7 +23,7 @@ export const NEIGHBORHOOD_BADGES = [
   { id: 'neighborhood-castro-eureka-valley', neighborhood: 'Castro/Eureka Valley', name: 'Castro Cruiser' },
   { id: 'neighborhood-cathedral-hill', neighborhood: 'Cathedral Hill', name: 'Cathedral Hill Crusader' },
   { id: 'neighborhood-chinatown', neighborhood: 'Chinatown', name: 'Chinatown Charger' },
-  { id: 'neighborhood-civic-center', neighborhood: 'Civic Center', name: 'Citizen' },
+  { id: 'neighborhood-civic-center', neighborhood: 'Civic Center', name: 'Civic Center Citizen' },
   { id: 'neighborhood-cole-valley', neighborhood: 'Cole Valley', name: 'Cole Valley Climber' },
   { id: 'neighborhood-crocker-amazon', neighborhood: 'Crocker-Amazon', name: 'Crocker-Amazon Queen' },
   { id: 'neighborhood-diamond-heights', neighborhood: 'Diamond Heights', name: 'Diamond Heights Dazzler' },
