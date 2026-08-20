@@ -223,7 +223,7 @@ export default function StairwayMap({
     } else {
       setVerifyStatus('idle');
       const updatedIds = new Set(checkedInIds).add(selected.id);
-      checkAndAwardBadges(stairways, updatedIds, selected.id);
+      checkAndAwardBadges(stairways, updatedIds, selected.id).catch((err) => console.error('Badge check failed', err));
     }
   }
 
@@ -694,7 +694,7 @@ export default function StairwayMap({
                           const updatedIds = new Set(checkedInIds).add(
                             selected.id
                           );
-                          checkAndAwardBadges(stairways, updatedIds, selected.id);
+                          checkAndAwardBadges(stairways, updatedIds, selected.id).catch((err) => console.error('Badge check failed', err));
                         }
                       }}
                     >

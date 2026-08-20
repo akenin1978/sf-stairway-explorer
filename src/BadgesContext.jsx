@@ -68,6 +68,12 @@ export function BadgesProvider({ children }) {
         setEarnedBadgeDates((prev) =>
           new Map(prev).set(badgeId, new Date().toISOString())
         );
+      } else {
+        // This used to fail completely silently -- no error shown
+        // anywhere, which made a real bug here indistinguishable from
+        // "just hasn't been triggered yet." Logging it so a genuine
+        // failure is actually visible in the console going forward.
+        console.error('Failed to award badge', badgeId, error);
       }
     },
     [user]
