@@ -105,6 +105,71 @@ html, body, #root {
   overflow-y: auto;
 }
 
+/* --- Leaderboard --- */
+.leaderboard-modal-card {
+  max-width: 420px;
+  max-height: 85dvh;
+  overflow-y: auto;
+}
+
+.leaderboard-section-heading {
+  font-size: 15px;
+  margin: 18px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.leaderboard-section-heading:first-of-type {
+  margin-top: 12px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.leaderboard-row-me {
+  background: #f5f4ff;
+  font-weight: 600;
+}
+
+.leaderboard-rank {
+  width: 32px;
+  flex-shrink: 0;
+  color: #888;
+  font-size: 13px;
+}
+
+.leaderboard-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-you-tag {
+  color: #4b3ce0;
+  font-weight: 600;
+}
+
+.leaderboard-count {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #4b3ce0;
+}
+
 .badges-section-heading {
   font-size: 15px;
   margin: 20px 0 10px;

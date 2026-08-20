@@ -20,9 +20,31 @@ const PAGE_SIZE = 500;
 // stays earned either way (badges are never revoked), this is just a
 // "hey, there's something new here" nudge, not a re-completion
 // requirement.
-function BadgeMedallion({ name, subtitle, progressLabel, earned, notificationCount }) {
-  const ringColor = earned ? '#27500A' : '#B8B8B8';
-  const fillColor = earned ? '#4F831A' : '#DDDDDD';
+// Color families by badge type: neighborhood badges stay the original
+// green (nothing to fix there, and there are 90 of them -- calm and
+// consistent matters more than variety). Milestones get a bronze ->
+// silver -> gold progression as the threshold grows, so climbing
+// through them actually feels like leveling up. Specials get the app's
+// own brand purple, since they're one-off achievements that don't fit
+// a normal category and deserve to look distinctly "rare."
+const TIER_COLORS = {
+  neighborhood: { ring: '#27500A', fill: '#4F831A' },
+  bronze: { ring: '#8B5A2B', fill: '#CD7F32' },
+  silver: { ring: '#71797E', fill: '#C0C0C0' },
+  gold: { ring: '#B8860B', fill: '#FFD700' },
+  special: { ring: '#2F2494', fill: '#4B3CE0' },
+};
+
+function milestoneTier(threshold) {
+  if (threshold === 'all' || threshold >= 1000) return 'gold';
+  if (threshold >= 200) return 'silver';
+  return 'bronze';
+}
+
+function BadgeMedallion({ name, subtitle, progressLabel, earned, tier, notificationCount }) {
+  const colors = TIER_COLORS[tier] || TIER_COLORS.neighborhood;
+  const ringColor = earned ? colors.ring : '#B8B8B8';
+  const fillColor = earned ? colors.fill : '#DDDDDD';
   const iconColor = earned ? '#FFFFFF' : '#F5F5F5';
 
   return (
@@ -146,6 +168,7 @@ export default function BadgesModal({ onClose }) {
                     progressLabel={total > 0 ? `${spotted}/${total}` : null}
                     earned={earnedBadgeIds.has(badge.id)}
                     notificationCount={total - spotted}
+                    tier="neighborhood"
                   />
                 );
               })}
@@ -162,6 +185,7 @@ export default function BadgesModal({ onClose }) {
                     name={badge.name}
                     progressLabel={`${Math.min(totalSpotted, threshold)}/${threshold}`}
                     earned={earnedBadgeIds.has(badge.id)}
+                    tier={milestoneTier(badge.threshold)}
                   />
                 );
               })}
@@ -185,6 +209,7 @@ export default function BadgesModal({ onClose }) {
                       ? fiveStarStairways.length - fiveStarSpotted.length
                       : 0
                   }
+                  tier="special"
                 />
               ))}
             </div>
