@@ -141,3 +141,20 @@ export const SPECIAL_BADGES = [
   // -- it hooks into the Spot a Stairway submission flow rather than
   // check-ins, which is a separate piece of work.
 ];
+
+// Shared tier colors + milestone tier logic, used by both the Badges
+// gallery (BadgesModal.jsx) and the badge-earned alert (BadgeEarnedModal.jsx)
+// so a badge always looks the same wherever it appears.
+export const TIER_COLORS = {
+  neighborhood: { ring: '#27500A', fill: '#4F831A' },
+  bronze: { ring: '#8B5A2B', fill: '#CD7F32' },
+  silver: { ring: '#71797E', fill: '#C0C0C0' },
+  gold: { ring: '#B8860B', fill: '#FFD700' },
+  special: { ring: '#2F2494', fill: '#4B3CE0' },
+};
+
+export function milestoneTier(threshold) {
+  if (threshold === 'all' || threshold >= 1000) return 'gold';
+  if (threshold >= 200) return 'silver';
+  return 'bronze';
+}

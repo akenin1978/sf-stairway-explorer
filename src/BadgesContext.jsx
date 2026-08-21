@@ -7,7 +7,7 @@ import {
 } from 'react';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
-import { NEIGHBORHOOD_BADGES, MILESTONE_BADGES } from './badgeDefinitions';
+import { NEIGHBORHOOD_BADGES, MILESTONE_BADGES, SPECIAL_BADGES, milestoneTier } from './badgeDefinitions';
 
 const BadgesContext = createContext(null);
 
@@ -93,12 +93,13 @@ export function BadgesProvider({ children }) {
   // added.
   const checkAndAwardBadges = useCallback(
     async (stairways, checkedInIds, spottedStairwayId) => {
-      if (!user || !stairways || stairways.length === 0) return;
+      const newlyAwarded = [];
+      if (!user || !stairways || stairways.length === 0) return newlyAwarded;
 
       const spottedStairway = stairways.find(
         (s) => s.id === spottedStairwayId
       );
-      if (!spottedStairway) return;
+      if (!spottedStairway) return newlyAwarded;
 
       // --- Neighborhood completion ---
       const neighborhoodBadge = NEIGHBORHOOD_BADGES.find(
@@ -113,6 +114,12 @@ export function BadgesProvider({ children }) {
         );
         if (allSpotted) {
           await awardBadge(neighborhoodBadge.id);
+          newlyAwarded.push({
+            id: neighborhoodBadge.id,
+            name: neighborhoodBadge.name,
+            neighborhood: neighborhoodBadge.neighborhood,
+            tier: 'neighborhood',
+          });
         }
       }
 
@@ -125,6 +132,11 @@ export function BadgesProvider({ children }) {
           milestone.threshold === 'all' ? totalStairways : milestone.threshold;
         if (totalSpotted >= threshold) {
           await awardBadge(milestone.id);
+          newlyAwarded.push({
+            id: milestone.id,
+            name: milestone.name,
+            tier: milestoneTier(milestone.threshold),
+          });
         }
       }
 
@@ -139,8 +151,16 @@ export function BadgesProvider({ children }) {
         );
         if (allFiveStarSpotted) {
           await awardBadge(BEST_OF_THE_BEST_ID);
+          const bestBadge = SPECIAL_BADGES.find((b) => b.id === BEST_OF_THE_BEST_ID);
+          newlyAwarded.push({
+            id: BEST_OF_THE_BEST_ID,
+            name: bestBadge ? bestBadge.name : 'Best of the Best',
+            tier: 'special',
+          });
         }
       }
+
+      return newlyAwarded;
     },
     [user, earnedBadgeIds, awardBadge]
   );

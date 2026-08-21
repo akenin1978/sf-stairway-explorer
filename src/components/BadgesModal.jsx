@@ -27,19 +27,10 @@ const PAGE_SIZE = 500;
 // through them actually feels like leveling up. Specials get the app's
 // own brand purple, since they're one-off achievements that don't fit
 // a normal category and deserve to look distinctly "rare."
-const TIER_COLORS = {
-  neighborhood: { ring: '#27500A', fill: '#4F831A' },
-  bronze: { ring: '#8B5A2B', fill: '#CD7F32' },
-  silver: { ring: '#71797E', fill: '#C0C0C0' },
-  gold: { ring: '#B8860B', fill: '#FFD700' },
-  special: { ring: '#2F2494', fill: '#4B3CE0' },
-};
-
-function milestoneTier(threshold) {
-  if (threshold === 'all' || threshold >= 1000) return 'gold';
-  if (threshold >= 200) return 'silver';
-  return 'bronze';
-}
+//
+// TIER_COLORS and milestoneTier now live in badgeDefinitions.js so this
+// gallery and the badge-earned alert always render a badge identically.
+import { TIER_COLORS, milestoneTier } from '../badgeDefinitions';
 
 function BadgeMedallion({ name, subtitle, progressLabel, earned, tier, notificationCount }) {
   const colors = TIER_COLORS[tier] || TIER_COLORS.neighborhood;

@@ -1,4 +1,4 @@
-# SF Stairway Explorer
+# SF Stairway Spotter
 
 A React web app showing San Francisco's public stairways on a Google Map,
 pulling data live from Supabase.
