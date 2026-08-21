@@ -13,11 +13,32 @@ export default function StatsModal({ onClose }) {
   useEffect(() => {
     let cancelled = false;
 
+    // Supabase caps a single select at 1000 rows by default (db-max-rows) --
+    // with 1200+ stairways, a plain .select() silently truncates. Page
+    // through with .range() until a page comes back short, which means
+    // we've reached the end.
+    async function fetchAllStairways() {
+      const pageSize = 1000;
+      let from = 0;
+      let all = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from('stairways')
+          .select('id, neighborhood')
+          .range(from, from + pageSize - 1);
+        if (error || !data) break;
+        all = all.concat(data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return all;
+    }
+
     async function load() {
       setLoading(true);
 
-      const [{ data: stairwayData }, { data: streakData }] = await Promise.all([
-        supabase.from('stairways').select('id, neighborhood, stair_count'),
+      const [stairwayData, { data: streakData }] = await Promise.all([
+        fetchAllStairways(),
         supabase.rpc('get_my_streak').maybeSingle(),
       ]);
 
@@ -38,13 +59,6 @@ export default function StatsModal({ onClose }) {
     const totalStairways = stairways.length;
     const totalSpotted = checkedInIds.size;
 
-    const totalSteps = stairways.reduce((sum, s) => {
-      if (checkedInIds.has(s.id) && s.stair_count != null) {
-        return sum + s.stair_count;
-      }
-      return sum;
-    }, 0);
-
     const neighborhoodMap = new Map();
     for (const s of stairways) {
       if (!s.neighborhood) continue;
@@ -61,9 +75,22 @@ export default function StatsModal({ onClose }) {
         spotted,
         pct: total > 0 ? Math.round((spotted / total) * 100) : 0,
       }))
-      .sort((a, b) => b.pct - a.pct || b.spotted - a.spotted);
+      .sort((a, b) => {
+        const aStarted = a.spotted > 0;
+        const bStarted = b.spotted > 0;
+        if (aStarted !== bStarted) return aStarted ? -1 : 1;
+        if (aStarted && bStarted) {
+          // Raw count, not percentage -- a neighborhood where you've
+          // spotted 15 of 40 represents more real progress than one
+          // where you've spotted 1 of 1, even though the latter is
+          // "more complete." Sorting by percentage would let tiny
+          // neighborhoods dominate the top just for being small.
+          return b.spotted - a.spotted || b.pct - a.pct || a.name.localeCompare(b.name);
+        }
+        return a.name.localeCompare(b.name);
+      });
 
-    return { totalStairways, totalSpotted, totalSteps, neighborhoods };
+    return { totalStairways, totalSpotted, neighborhoods };
   }, [stairways, checkedInIds]);
 
   return (
@@ -99,10 +126,6 @@ export default function StatsModal({ onClose }) {
                   {stats.totalSpotted} / {stats.totalStairways}
                 </span>
                 <span className="stats-summary-label">stairways spotted</span>
-              </div>
-              <div className="stats-summary-block">
-                <span className="stats-summary-number">{stats.totalSteps.toLocaleString()}</span>
-                <span className="stats-summary-label">steps climbed</span>
               </div>
             </div>
 
