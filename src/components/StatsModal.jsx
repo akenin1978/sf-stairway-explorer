@@ -76,16 +76,19 @@ export default function StatsModal({ onClose }) {
         pct: total > 0 ? Math.round((spotted / total) * 100) : 0,
       }))
       .sort((a, b) => {
-        const aStarted = a.spotted > 0;
-        const bStarted = b.spotted > 0;
-        if (aStarted !== bStarted) return aStarted ? -1 : 1;
-        if (aStarted && bStarted) {
-          // Raw count, not percentage -- a neighborhood where you've
-          // spotted 15 of 40 represents more real progress than one
-          // where you've spotted 1 of 1, even though the latter is
-          // "more complete." Sorting by percentage would let tiny
-          // neighborhoods dominate the top just for being small.
-          return b.spotted - a.spotted || b.pct - a.pct || a.name.localeCompare(b.name);
+        // Three tiers: in-progress neighborhoods (the actionable ones --
+        // a little more effort finishes them) lead, sorted by how close
+        // to done they are. Fully-complete neighborhoods move to their
+        // own group after that -- nothing left to do there, so they
+        // shouldn't compete for the top slot just for being small (a
+        // tiny 1/1 neighborhood hitting 100% used to jump straight to
+        // the top, which wasn't useful). Not-yet-started stays last.
+        const tier = (n) => (n.pct === 100 ? 1 : n.spotted > 0 ? 0 : 2);
+        const aTier = tier(a);
+        const bTier = tier(b);
+        if (aTier !== bTier) return aTier - bTier;
+        if (aTier === 0) {
+          return b.pct - a.pct || b.spotted - a.spotted || a.name.localeCompare(b.name);
         }
         return a.name.localeCompare(b.name);
       });
