@@ -429,9 +429,17 @@ export default function StairwayMap({
   // --- "Locate me" (general map button, separate from the Spot-a-Stairway
   // "use my location" flow above) ---
   const [myLocation, setMyLocation] = useState(null);
+  const [myHeading, setMyHeading] = useState(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const locationWatchIdRef = useRef(null);
 
+  // "Locate me" now tracks continuously (watchPosition) instead of taking
+  // a single one-time fix (getCurrentPosition) -- the direction flare
+  // needs live updates as you walk. GPS heading only comes through from
+  // the browser while actually moving, so it's null when stationary;
+  // that's why the flare only appears once you're walking, not the
+  // instant you tap the button.
   function handleLocateMe() {
     if (!navigator.geolocation) {
       setLocationError('Location services are not available in this browser.');
@@ -439,9 +447,17 @@ export default function StairwayMap({
     }
     setLocating(true);
     setLocationError('');
-    navigator.geolocation.getCurrentPosition(
+
+    if (locationWatchIdRef.current != null) {
+      navigator.geolocation.clearWatch(locationWatchIdRef.current);
+    }
+
+    locationWatchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
         setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        if (pos.coords.heading != null && !Number.isNaN(pos.coords.heading)) {
+          setMyHeading(pos.coords.heading);
+        }
         setLocating(false);
       },
       () => {
@@ -453,6 +469,16 @@ export default function StairwayMap({
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
+
+  // Stop watching when the map unmounts -- otherwise this would keep
+  // requesting location updates (and draining battery) indefinitely.
+  useEffect(() => {
+    return () => {
+      if (locationWatchIdRef.current != null) {
+        navigator.geolocation.clearWatch(locationWatchIdRef.current);
+      }
+    };
+  }, []);
 
   function handleUseMyLocation() {
     if (!navigator.geolocation) {
@@ -662,9 +688,30 @@ export default function StairwayMap({
                   strokeWeight: 0,
                   scale: 18,
                 }}
-                zIndex={998}
+                zIndex={997}
                 clickable={false}
               />
+              {/* Direction flare -- only appears once we have a real travel
+                  heading (i.e. you're actually walking, not standing
+                  still). rotation is degrees clockwise from north, same
+                  convention GPS heading already uses, so no conversion
+                  needed before passing it straight through. */}
+              {myHeading != null && (
+                <Marker
+                  position={myLocation}
+                  icon={{
+                    path: 'M 0,0 L -0.6,-1.3 Q 0,-1.6 0.6,-1.3 Z',
+                    fillColor: '#4b3ce0',
+                    fillOpacity: 0.35,
+                    strokeWeight: 0,
+                    scale: 18,
+                    rotation: myHeading,
+                    anchor: new window.google.maps.Point(0, 0),
+                  }}
+                  zIndex={998}
+                  clickable={false}
+                />
+              )}
               <Marker
                 position={myLocation}
                 icon={{

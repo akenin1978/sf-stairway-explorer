@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import StairwayMap from './components/StairwayMap';
+import OnboardingCarousel from './components/OnboardingCarousel';
 import FeedbackModal from './components/FeedbackModal';
 import AuthModal from './components/AuthModal';
 import SettingsModal from './components/SettingsModal';
 import BadgesModal from './components/BadgesModal';
+import StatsModal from './components/StatsModal';
 import LeaderboardModal from './components/LeaderboardModal';
 import FriendsModal from './components/FriendsModal';
 import { useAuth } from './AuthContext';
@@ -16,6 +18,7 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [badgesOpen, setBadgesOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -24,6 +27,7 @@ export default function App() {
   const { user, loading, signOut } = useAuth();
   const { count: checkedInCount, verifiedCount } = useCheckIns();
   const [totalStairways, setTotalStairways] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     supabase
@@ -33,6 +37,21 @@ export default function App() {
         if (count != null) setTotalStairways(count);
       });
   }, []);
+
+  // Shown once ever, only to first-time visitors who aren't signed in.
+  // Dismissing (Skip, "Get started", or swiping past the last slide) sets
+  // a permanent localStorage flag on this device.
+  useEffect(() => {
+    if (!loading && !user) {
+      const seen = localStorage.getItem('sf_stairway_onboarding_seen') === 'true';
+      if (!seen) setShowOnboarding(true);
+    }
+  }, [loading, user]);
+
+  function dismissOnboarding() {
+    localStorage.setItem('sf_stairway_onboarding_seen', 'true');
+    setShowOnboarding(false);
+  }
 
   const openGeneralFeedback = () => {
     setFeedbackStairway(null);
@@ -46,6 +65,13 @@ export default function App() {
 
   return (
     <div className="app">
+      {showOnboarding && (
+        <OnboardingCarousel
+          totalStairways={totalStairways}
+          onDismiss={dismissOnboarding}
+        />
+      )}
+
       <header className="app-header">
         <h1>
           <svg
@@ -101,6 +127,15 @@ export default function App() {
                         }}
                       >
                         Badges
+                      </button>
+                      <button
+                        className="header-menu-item"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setStatsOpen(true);
+                        }}
+                      >
+                        My stats
                       </button>
                       <button
                         className="header-menu-item"
@@ -190,6 +225,8 @@ export default function App() {
       )}
 
       {badgesOpen && <BadgesModal onClose={() => setBadgesOpen(false)} />}
+
+      {statsOpen && <StatsModal onClose={() => setStatsOpen(false)} />}
 
       {leaderboardOpen && (
         <LeaderboardModal onClose={() => setLeaderboardOpen(false)} />

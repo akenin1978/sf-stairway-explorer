@@ -122,7 +122,12 @@ export default function FriendsModal({ onClose }) {
                 <div className="friends-list">
                   {received.map((f) => (
                     <div key={f.friendship_id} className="friends-row">
-                      <span className="friends-name">{f.friend_display_name}</span>
+                      <span className="friends-name">
+                        {f.friend_display_name}
+                        {f.friend_email && (
+                          <span className="friends-email"> ({f.friend_email})</span>
+                        )}
+                      </span>
                       <button
                         className="friends-accept-button"
                         onClick={() => handleAccept(f.friendship_id)}
