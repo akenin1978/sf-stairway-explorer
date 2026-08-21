@@ -2,12 +2,18 @@
 // into their real, direct, hotlinkable image URLs, and saves them into the
 // `direct_photo_url` column in Supabase.
 //
-// Safe to interrupt and re-run: it only processes rows that don't already
-// have a direct_photo_url, so nothing gets redone or duplicated.
+// By default, only processes rows that don't already have a
+// direct_photo_url, so it's safe to interrupt and re-run without redoing
+// work. Pass --force to reprocess EVERY row with a photo_url, including
+// ones that already have a (possibly stale) direct_photo_url -- use this
+// after updating existing photos in the Google Sheet, since a normal run
+// would otherwise skip rows that already resolved once before.
 //
 // Usage:
-//   node scripts/resolve-photos.mjs 5      <- test on just 5 rows first
-//   node scripts/resolve-photos.mjs         <- run on everything remaining
+//   node scripts/resolve-photos.mjs 5             <- test on 5 unresolved rows
+//   node scripts/resolve-photos.mjs               <- resolve everything unresolved
+//   node scripts/resolve-photos.mjs --force 5     <- test re-resolving 5 rows
+//   node scripts/resolve-photos.mjs --force       <- re-resolve EVERYTHING
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -23,7 +29,8 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const limitArg = process.argv[2];
+const force = process.argv.includes('--force');
+const limitArg = process.argv.find((arg) => arg !== '--force' && /^\d+$/.test(arg));
 const limit = limitArg ? parseInt(limitArg, 10) : null;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -46,11 +53,18 @@ async function main() {
   let query = supabase
     .from('stairways')
     .select('id, description, photo_url')
-    .not('photo_url', 'is', null)
-    .is('direct_photo_url', null);
+    .not('photo_url', 'is', null);
+
+  if (!force) {
+    query = query.is('direct_photo_url', null);
+  }
 
   if (limit) {
     query = query.limit(limit);
+  }
+
+  if (force) {
+    console.log('Running with --force: reprocessing rows even if they already have a direct_photo_url.\n');
   }
 
   const { data: rows, error } = await query;
