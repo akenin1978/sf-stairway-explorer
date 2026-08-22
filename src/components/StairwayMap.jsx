@@ -453,6 +453,7 @@ export default function StairwayMap({
           if (newBadges && newBadges.length > 0) setBadgeQueue(newBadges);
         })
         .catch((err) => console.error('Badge check failed', err));
+      setSelected(null);
     }
   }
 
@@ -912,6 +913,7 @@ export default function StairwayMap({
           {selected && !spotMode && (
             <InfoWindow
               position={{ lat: selected.latitude, lng: selected.longitude }}
+              zIndex={30}
               onCloseClick={() => setSelected(null)}
             >
               <div className="info-window">

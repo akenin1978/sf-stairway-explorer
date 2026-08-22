@@ -89,7 +89,7 @@ export default function OnboardingCarousel({ totalStairways, onDismiss }) {
           SF Stairway Spotter
         </>
       ),
-      body: `Discover San Francisco's ${stairwayCount}+ stairways, one step at a time.`,
+      body: `Discover San Francisco's ${stairwayCount} stairways, one step at a time.`,
     },
     {
       icon: <MapIcon />,
