@@ -160,6 +160,43 @@ function PanToUserLocation({ target }) {
   return null;
 }
 
+// Tracks the map's current visible area (with some padding) so the
+// stairway list can be culled to only what's on/near screen, instead of
+// rendering all ~1200 markers regardless of zoom level. Updates on
+// 'idle' -- which fires once after a pan/zoom gesture settles, not on
+// every frame -- so recalculating bounds doesn't itself cause a
+// re-render storm during the gesture.
+function ViewportBoundsTracker({ onBoundsChange }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+
+    function updateBounds() {
+      const bounds = map.getBounds();
+      if (!bounds) return;
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      const latSpan = ne.lat() - sw.lat();
+      const lngSpan = ne.lng() - sw.lng();
+      const padding = 0.3; // 30% extra margin so markers don't pop in/out abruptly while panning
+      onBoundsChange({
+        north: ne.lat() + latSpan * padding,
+        south: sw.lat() - latSpan * padding,
+        east: ne.lng() + lngSpan * padding,
+        west: sw.lng() - lngSpan * padding,
+      });
+    }
+
+    const listener = map.addListener('idle', updateBounds);
+    updateBounds();
+
+    return () => listener.remove();
+  }, [map, onBoundsChange]);
+
+  return null;
+}
+
 // The round "locate me" button that floats over the map, bottom-right,
 // positioned above Google's own zoom controls so the two don't overlap.
 function LocateMeButton({ onLocate, locating }) {
@@ -635,6 +672,23 @@ export default function StairwayMap({
     );
   }, [stairways, visibleRatings, visibleNeighborhoods]);
 
+  const [mapBounds, setMapBounds] = useState(null);
+
+  // Further narrows visibleStairways (already filtered by rating/
+  // neighborhood toggles) down to just what's within the current map
+  // view. mapBounds is null until the map's first 'idle' event fires,
+  // so everything renders normally on initial load.
+  const culledStairways = useMemo(() => {
+    if (!mapBounds) return visibleStairways;
+    return visibleStairways.filter(
+      (s) =>
+        s.latitude <= mapBounds.north &&
+        s.latitude >= mapBounds.south &&
+        s.longitude <= mapBounds.east &&
+        s.longitude >= mapBounds.west
+    );
+  }, [visibleStairways, mapBounds]);
+
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   if (!apiKey) {
@@ -686,6 +740,7 @@ export default function StairwayMap({
         >
           <MapRecenter target={selected} />
           <PanToUserLocation target={panTarget} />
+          <ViewportBoundsTracker onBoundsChange={setMapBounds} />
           {myLocation && (
             <>
               {/* Soft outer halo -- makes this read as "a location marker"
@@ -739,7 +794,7 @@ export default function StairwayMap({
               />
             </>
           )}
-          {visibleStairways.map((s) => {
+          {culledStairways.map((s) => {
             const style = getRatingStyle(s.rating);
             const isChecked = checkedInIds.has(s.id);
             const isVerified = checkedInMethods.get(s.id) === 'photo-verified';
