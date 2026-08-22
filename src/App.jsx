@@ -1,45 +1,6 @@
 import { useEffect, useState } from 'react';
 import StairwayMap from './components/StairwayMap';
 import OnboardingCarousel from './components/OnboardingCarousel';
-import { Component } from 'react';
-
-// TEMPORARY debugging tool -- shows the actual crash message on screen
-// instead of a silent blank page, so we can see mobile errors without
-// needing a cable-connected remote debugger. Remove once the real bug
-// is found and fixed.
-class OnboardingErrorBoundary extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { error };
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: '#fff',
-            zIndex: 3000,
-            padding: 24,
-            fontFamily: 'monospace',
-            fontSize: 13,
-            overflow: 'auto',
-          }}
-        >
-          <h2 style={{ color: '#c0392b' }}>Onboarding crashed:</h2>
-          <p>{this.state.error.message}</p>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error.stack}</pre>
-          <button onClick={() => window.location.reload()}>Reload</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 import FeedbackModal from './components/FeedbackModal';
 import AuthModal from './components/AuthModal';
 import SettingsModal from './components/SettingsModal';
@@ -103,15 +64,12 @@ export default function App() {
   };
 
   return (
-    <OnboardingErrorBoundary>
     <div className="app">
       {showOnboarding && (
-        <OnboardingErrorBoundary>
-          <OnboardingCarousel
-            totalStairways={totalStairways}
-            onDismiss={dismissOnboarding}
-          />
-        </OnboardingErrorBoundary>
+        <OnboardingCarousel
+          totalStairways={totalStairways}
+          onDismiss={dismissOnboarding}
+        />
       )}
 
       <header className="app-header">
@@ -276,6 +234,5 @@ export default function App() {
 
       {friendsOpen && <FriendsModal onClose={() => setFriendsOpen(false)} />}
     </div>
-    </OnboardingErrorBoundary>
   );
 }
