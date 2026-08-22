@@ -429,10 +429,16 @@ export default function StairwayMap({
   // --- "Locate me" (general map button, separate from the Spot-a-Stairway
   // "use my location" flow above) ---
   const [myLocation, setMyLocation] = useState(null);
+  // Separate from myLocation -- myLocation updates continuously (for the
+  // dot + flare), but panTarget only updates once per "locate me" tap,
+  // so the map centers/zooms once and then leaves scroll/zoom alone
+  // instead of snapping back on every GPS update while you're walking.
+  const [panTarget, setPanTarget] = useState(null);
   const [myHeading, setMyHeading] = useState(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState('');
   const locationWatchIdRef = useRef(null);
+  const hasCenteredRef = useRef(false);
 
   // "Locate me" now tracks continuously (watchPosition) instead of taking
   // a single one-time fix (getCurrentPosition) -- the direction flare
@@ -451,10 +457,16 @@ export default function StairwayMap({
     if (locationWatchIdRef.current != null) {
       navigator.geolocation.clearWatch(locationWatchIdRef.current);
     }
+    hasCenteredRef.current = false;
 
     locationWatchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setMyLocation(loc);
+        if (!hasCenteredRef.current) {
+          setPanTarget(loc);
+          hasCenteredRef.current = true;
+        }
         if (pos.coords.heading != null && !Number.isNaN(pos.coords.heading)) {
           setMyHeading(pos.coords.heading);
         }
@@ -673,7 +685,7 @@ export default function StairwayMap({
           }}
         >
           <MapRecenter target={selected} />
-          <PanToUserLocation target={myLocation} />
+          <PanToUserLocation target={panTarget} />
           {myLocation && (
             <>
               {/* Soft outer halo -- makes this read as "a location marker"
