@@ -7,62 +7,13 @@ import {
 } from 'react';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
+import {
+  getVerificationThresholdMeters,
+  haversineDistanceMeters,
+  pointToSegmentDistanceMeters,
+} from './verificationUtils';
 
 const CheckInsContext = createContext(null);
-
-// Defined in feet since that's the unit used everywhere else in this app
-// (US audience, and how override radii for long stairways get measured
-// and calibrated) -- meters is just what the distance math needs
-// internally.
-const GPS_THRESHOLD_FEET = 300;
-const GPS_THRESHOLD_METERS = GPS_THRESHOLD_FEET * 0.3048;
-
-// How far someone's GPS position is from the *nearest point* along a
-// straight line (not just from one center point) -- a much better fit
-// for a stairway that runs the length of a street, rather than sitting
-// in one compact spot. Uses a simple flat-earth approximation, which is
-// accurate to well under a meter of error at the distances involved
-// here (a few hundred to a couple thousand feet) -- no need for full
-// spherical geometry at this scale.
-function pointToSegmentDistanceMeters(point, segStart, segEnd) {
-  const refLat = segStart.lat;
-  const metersPerDegLat = 111320;
-  const metersPerDegLng = 111320 * Math.cos((refLat * Math.PI) / 180);
-
-  const toLocalXY = (lat, lng) => ({
-    x: lng * metersPerDegLng,
-    y: lat * metersPerDegLat,
-  });
-
-  const p = toLocalXY(point.lat, point.lng);
-  const a = toLocalXY(segStart.lat, segStart.lng);
-  const b = toLocalXY(segEnd.lat, segEnd.lng);
-
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lengthSq = dx * dx + dy * dy;
-
-  let t = lengthSq === 0 ? 0 : ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq;
-  t = Math.max(0, Math.min(1, t)); // clamp to the segment itself, not the infinite line
-
-  const closestX = a.x + t * dx;
-  const closestY = a.y + t * dy;
-  const ddx = p.x - closestX;
-  const ddy = p.y - closestY;
-  return Math.sqrt(ddx * ddx + ddy * ddy);
-}
-
-function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
 
 // Pulls the storage path back out of a public Supabase Storage URL, so a
 // deleted check-in can also clean up the actual photo file instead of
@@ -293,10 +244,7 @@ export function CheckInsProvider({ children }) {
       // For a line, this is the tolerance to either side of it, not a
       // "how far from the center" radius -- reuses the same column for
       // simplicity rather than adding a whole separate field for it.
-      const thresholdMeters =
-        stairway.verification_radius_feet != null
-          ? stairway.verification_radius_feet * 0.3048
-          : GPS_THRESHOLD_METERS;
+      const thresholdMeters = getVerificationThresholdMeters(stairway);
 
       if (distanceMeters > thresholdMeters) {
         return {
