@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { APIProvider, Map, Marker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  APIProvider,
+  Map,
+  Marker,
+  InfoWindow,
+  useMap,
+} from '@vis.gl/react-google-maps';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 import { useCheckIns } from '../CheckInsContext';
@@ -160,13 +166,67 @@ function PanToUserLocation({ target }) {
   return null;
 }
 
+function StairwayMarkers({
+  stairways,
+  checkedInIds,
+  checkedInMethods,
+  spotMode,
+  onSelect,
+}) {
+  return stairways.map((stairway) => {
+    const style = getRatingStyle(stairway.rating);
+    const isChecked = checkedInIds.has(stairway.id);
+    const isVerified =
+      checkedInMethods.get(stairway.id) === 'photo-verified';
+
+    return (
+      <Marker
+        key={stairway.id}
+        position={{ lat: stairway.latitude, lng: stairway.longitude }}
+        onClick={() => {
+          if (!spotMode) onSelect(stairway);
+        }}
+        icon={{
+          path: window.google.maps.SymbolPath.CIRCLE,
+          fillColor: style.color,
+          fillOpacity: 0.9,
+          strokeColor: '#ffffff',
+          strokeWeight: 1.5,
+          scale: 8,
+        }}
+        label={
+          isVerified
+            ? {
+                text: '★',
+                color: '#ffffff',
+                fontSize: '10px',
+                fontWeight: 'bold',
+              }
+            : isChecked
+            ? {
+                text: '✓',
+                color: '#ffffff',
+                fontSize: '10px',
+                fontWeight: 'bold',
+              }
+            : undefined
+        }
+      />
+    );
+  });
+}
+
 // Tracks the map's current visible area (with some padding) so the
 // stairway list can be culled to only what's on/near screen, instead of
 // rendering all ~1200 markers regardless of zoom level. Updates on
 // 'idle' -- which fires once after a pan/zoom gesture settles, not on
 // every frame -- so recalculating bounds doesn't itself cause a
 // re-render storm during the gesture.
-function ViewportBoundsTracker({ onBoundsChange }) {
+function ViewportBoundsTracker({
+  onBoundsChange,
+  onInteractionChange,
+  onZoomChange,
+}) {
   const map = useMap();
 
   useEffect(() => {
@@ -188,11 +248,38 @@ function ViewportBoundsTracker({ onBoundsChange }) {
       });
     }
 
-    const listener = map.addListener('idle', updateBounds);
-    updateBounds();
+    function handleInteractionStart() {
+      onInteractionChange(true);
+    }
 
-    return () => listener.remove();
-  }, [map, onBoundsChange]);
+    function handleIdle() {
+      updateBounds();
+      onZoomChange(map.getZoom());
+      onInteractionChange(false);
+    }
+
+    const listeners = [
+      map.addListener('dragstart', handleInteractionStart),
+      map.addListener('zoom_changed', handleInteractionStart),
+      map.addListener('idle', handleIdle),
+    ];
+
+    // Pointer events catch touch, pen, and mouse interaction immediately,
+    // including mobile pinch gestures that Google Maps may classify
+    // differently from a desktop drag.
+    const container = map.getDiv();
+    container.addEventListener('pointerdown', handleInteractionStart, {
+      passive: true,
+    });
+
+    updateBounds();
+    onZoomChange(map.getZoom());
+
+    return () => {
+      listeners.forEach((listener) => listener.remove());
+      container.removeEventListener('pointerdown', handleInteractionStart);
+    };
+  }, [map, onBoundsChange, onInteractionChange, onZoomChange]);
 
   return null;
 }
@@ -673,6 +760,8 @@ export default function StairwayMap({
   }, [stairways, visibleRatings, visibleNeighborhoods]);
 
   const [mapBounds, setMapBounds] = useState(null);
+  const [, setIsMapInteracting] = useState(false);
+  const [mapZoom, setMapZoom] = useState(12);
 
   // Further narrows visibleStairways (already filtered by rating/
   // neighborhood toggles) down to just what's within the current map
@@ -740,7 +829,11 @@ export default function StairwayMap({
         >
           <MapRecenter target={selected} />
           <PanToUserLocation target={panTarget} />
-          <ViewportBoundsTracker onBoundsChange={setMapBounds} />
+          <ViewportBoundsTracker
+            onBoundsChange={setMapBounds}
+            onInteractionChange={setIsMapInteracting}
+            onZoomChange={setMapZoom}
+          />
           {myLocation && (
             <>
               {/* Soft outer halo -- makes this read as "a location marker"
@@ -794,35 +887,13 @@ export default function StairwayMap({
               />
             </>
           )}
-          {culledStairways.map((s) => {
-            const style = getRatingStyle(s.rating);
-            const isChecked = checkedInIds.has(s.id);
-            const isVerified = checkedInMethods.get(s.id) === 'photo-verified';
-            return (
-              <Marker
-                key={s.id}
-                position={{ lat: s.latitude, lng: s.longitude }}
-                onClick={() => {
-                  if (!spotMode) setSelected(s);
-                }}
-                icon={{
-                  path: window.google.maps.SymbolPath.CIRCLE,
-                  fillColor: style.color,
-                  fillOpacity: 0.9,
-                  strokeColor: '#ffffff',
-                  strokeWeight: 1.5,
-                  scale: 8,
-                }}
-                label={
-                  isVerified
-                    ? { text: '★', color: '#ffffff', fontSize: '10px', fontWeight: 'bold' }
-                    : isChecked
-                    ? { text: '✓', color: '#ffffff', fontSize: '10px', fontWeight: 'bold' }
-                    : undefined
-                }
-              />
-            );
-          })}
+          <StairwayMarkers
+            stairways={culledStairways}
+            checkedInIds={checkedInIds}
+            checkedInMethods={checkedInMethods}
+            spotMode={spotMode}
+            onSelect={setSelected}
+          />
 
           {spotMode && spotLocation && (
             <Marker
