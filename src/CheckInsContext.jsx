@@ -12,21 +12,11 @@ import {
   haversineDistanceMeters,
   pointToSegmentDistanceMeters,
 } from './verificationUtils';
+import { fetchAllCheckIns, storagePathFromPublicUrl } from './checkInData';
+
+export { storagePathFromPublicUrl } from './checkInData';
 
 const CheckInsContext = createContext(null);
-
-// Pulls the storage path back out of a public Supabase Storage URL, so a
-// deleted check-in can also clean up the actual photo file instead of
-// leaving it orphaned in storage forever. Returns null if the URL doesn't
-// match the expected shape rather than guessing. Exported so account
-// deletion can reuse the same logic for every photo at once.
-export function storagePathFromPublicUrl(publicUrl) {
-  if (!publicUrl) return null;
-  const marker = '/checkin-photos/';
-  const idx = publicUrl.indexOf(marker);
-  if (idx === -1) return null;
-  return publicUrl.slice(idx + marker.length);
-}
 
 export function CheckInsProvider({ children }) {
   const { user } = useAuth();
@@ -48,35 +38,31 @@ export function CheckInsProvider({ children }) {
     let isMounted = true;
     setLoading(true);
 
-    supabase
-      .from('check_ins')
-      .select('stairway_id, created_at, verification_method, photo_url')
-      .eq('user_id', user.id)
-      .then(({ data, error }) => {
-        if (!isMounted) return;
-        if (!error && data) {
-          setCheckedInIds(new Set(data.map((row) => row.stairway_id)));
-          setCheckedInDates(
-            new Map(data.map((row) => [row.stairway_id, row.created_at]))
-          );
-          setCheckedInMethods(
-            new Map(
-              data.map((row) => [
-                row.stairway_id,
-                row.verification_method || 'self-reported',
-              ])
-            )
-          );
-          setCheckedInPhotoUrls(
-            new Map(
-              data
-                .filter((row) => row.photo_url)
-                .map((row) => [row.stairway_id, row.photo_url])
-            )
-          );
-        }
-        setLoading(false);
-      });
+    fetchAllCheckIns(supabase, user.id).then(({ data, error }) => {
+      if (!isMounted) return;
+      if (!error && data) {
+        setCheckedInIds(new Set(data.map((row) => row.stairway_id)));
+        setCheckedInDates(
+          new Map(data.map((row) => [row.stairway_id, row.created_at]))
+        );
+        setCheckedInMethods(
+          new Map(
+            data.map((row) => [
+              row.stairway_id,
+              row.verification_method || 'self-reported',
+            ])
+          )
+        );
+        setCheckedInPhotoUrls(
+          new Map(
+            data
+              .filter((row) => row.photo_url)
+              .map((row) => [row.stairway_id, row.photo_url])
+          )
+        );
+      }
+      setLoading(false);
+    });
 
     return () => {
       isMounted = false;
@@ -100,6 +86,17 @@ export function CheckInsProvider({ children }) {
         // to clean up the actual photo file in storage -- otherwise a
         // removed check-in leaves an orphaned file behind forever.
         const photoUrlToClean = checkedInPhotoUrls.get(stairwayId);
+
+        const storagePath = storagePathFromPublicUrl(photoUrlToClean);
+        if (storagePath) {
+          const { error: removeError } = await supabase.storage
+            .from('checkin-photos')
+            .remove([storagePath]);
+          if (removeError) {
+            setCheckedInIds((prev) => new Set(prev).add(stairwayId));
+            return { error: removeError };
+          }
+        }
 
         setCheckedInDates((prev) => {
           const next = new Map(prev);
@@ -128,16 +125,6 @@ export function CheckInsProvider({ children }) {
           return { error };
         }
 
-        // Best-effort cleanup -- if this fails, the check-in itself is
-        // still correctly deleted, it just leaves one unused file behind.
-        // Not worth failing the whole un-check over.
-        const storagePath = storagePathFromPublicUrl(photoUrlToClean);
-        if (storagePath) {
-          supabase.storage
-            .from('checkin-photos')
-            .remove([storagePath])
-            .catch(() => {});
-        }
       } else {
         const optimisticDate = new Date().toISOString();
         setCheckedInDates((prev) =>
@@ -282,6 +269,15 @@ export function CheckInsProvider({ children }) {
       );
 
       if (upsertError) {
+        const { error: cleanupError } = await supabase.storage
+          .from('checkin-photos')
+          .remove([filePath]);
+        if (cleanupError) {
+          console.error(
+            'Failed to clean up unsaved verification photo',
+            cleanupError
+          );
+        }
         return { error: 'save-failed' };
       }
 

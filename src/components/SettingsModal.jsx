@@ -172,7 +172,16 @@ export default function SettingsModal({ onClose }) {
       .map(storagePathFromPublicUrl)
       .filter(Boolean);
     if (paths.length > 0) {
-      await supabase.storage.from('checkin-photos').remove(paths).catch(() => {});
+      const { error: photoDeleteError } = await supabase.storage
+        .from('checkin-photos')
+        .remove(paths);
+      if (photoDeleteError) {
+        setDeleteStatus('error');
+        setErrorMsg(
+          "We couldn't delete your verification photos, so your account was not deleted. Please try again."
+        );
+        return;
+      }
     }
 
     const { error } = await supabase.rpc('delete_my_account');
