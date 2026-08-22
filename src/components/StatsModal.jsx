@@ -3,6 +3,19 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 import { useCheckIns } from '../CheckInsContext';
 
+// Display-only shortenings for a few long neighborhood names in this
+// list -- the underlying data (used for badges and the sheet sync)
+// stays exactly as-is. If any of these don't match, it's because the
+// actual stored spelling differs slightly (extra word, different
+// punctuation) -- worth a quick check against the real data.
+const NEIGHBORHOOD_DISPLAY_OVERRIDES = {
+  'BART and Muni Stations': 'BART and Muni',
+  'Castro/Eureka Valley': 'Castro/Eur. Valley',
+  'Forest Hill Extension': 'Forest Hill Ext.',
+  'Northern Waterfront': 'No. Waterfront',
+  'Presidio (Fort Winfield Scott)': 'Presidio (Ft. Scott)',
+};
+
 export default function StatsModal({ onClose }) {
   const { user } = useAuth();
   const { checkedInIds } = useCheckIns();
@@ -136,7 +149,7 @@ export default function StatsModal({ onClose }) {
             <div className="stats-neighborhood-list">
               {stats.neighborhoods.map((n) => (
                 <div key={n.name} className="stats-neighborhood-row">
-                  <span className="stats-neighborhood-name">{n.name}</span>
+                  <span className="stats-neighborhood-name">{NEIGHBORHOOD_DISPLAY_OVERRIDES[n.name] || n.name}</span>
                   <div className="stats-neighborhood-bar-track">
                     <div
                       className="stats-neighborhood-bar-fill"
